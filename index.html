@@ -457,6 +457,15 @@ textarea.input { resize: none; line-height: 1.5; }
 .chips--days::-webkit-scrollbar { display: none; }
 .chips--days .chip { flex: 0 0 auto; min-width: 54px; text-align: center; padding: 8px 8px; }
 .field__hint { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+/* صندوق المزامنة */
+.sync-box { padding: 16px 0; border-bottom: 1px solid var(--line); }
+.sync-box > strong { font-size: 15px; }
+.sync-box .muted { margin: 4px 0 12px; }
+.sync-box__actions { display: flex; gap: 8px; margin-top: 10px; }
+#syncStatus { margin-top: 10px; font-weight: 700; }
+#syncStatus[data-state="ok"] { color: var(--success); }
+#syncStatus[data-state="err"] { color: var(--danger); }
 #fDayField.is-disabled { opacity: .5; pointer-events: none; }
 
 /* المقسّم (Segmented) */
@@ -977,6 +986,17 @@ textarea.input { resize: none; line-height: 1.5; }
 
         <p class="hint-note">🔔 على الآيفون: فعّل التنبيهات من <b>داخل التطبيق المثبَّت</b> على الشاشة الرئيسية (لا من Safari). ولضمان الرنين في الأوقات الحسّاسة حتى والتطبيق مغلق، يُنصح بضبط منبّه في تطبيق «الساعة».</p>
 
+        <div class="sync-box">
+          <strong>☁️ المزامنة بين الأجهزة</strong>
+          <p class="muted">اكتب رمزًا سريًّا واستعمل <b>نفسه</b> على جوالك وحاسوبك، فتظهر مهامك في الجهازين. البيانات تُرفع مُشفّرة.</p>
+          <input id="syncCode" class="input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="رمز المزامنة (مثال: ahd-2026)" />
+          <div class="sync-box__actions">
+            <button type="button" id="btnSyncSave" class="btn btn--primary btn--sm">تفعيل / مزامنة الآن</button>
+            <button type="button" id="btnSyncOff" class="btn btn--ghost btn--sm">إيقاف</button>
+          </div>
+          <p class="field__hint" id="syncStatus">غير مفعّلة</p>
+        </div>
+
         <div class="settings__row settings__row--danger">
           <div>
             <strong>تصفير بيانات اليوم</strong>
@@ -1029,7 +1049,9 @@ textarea.input { resize: none; line-height: 1.5; }
   const defaultState = {
     tasks: [],            // القوالب: { id, title, desc, time, category, repeat, priority, date }
     daily: {},            // { 'YYYY-MM-DD': { taskId: { status:'done'|'missed', reason } } }
-    settings: { sound: true, notifPermission: "default", installDismissed: false, notified: {}, theme: null },
+    deletedIds: {},       // { taskId: timestamp } — لمزامنة الحذف بين الأجهزة
+    dataUpdatedAt: 0,     // آخر تعديل على البيانات (للمزامنة)
+    settings: { sound: true, notifPermission: "default", installDismissed: false, notified: {}, theme: null, syncCode: "" },
     seeded: false
   };
 
@@ -1038,13 +1060,175 @@ textarea.input { resize: none; line-height: 1.5; }
   function load() {
     try {
       const raw = localStorage.getItem(STORE_KEY);
-      if (raw) return Object.assign({}, defaultState, JSON.parse(raw));
+      if (raw) {
+        const s = Object.assign({}, defaultState, JSON.parse(raw));
+        s.settings = Object.assign({}, defaultState.settings, s.settings || {});
+        if (!s.deletedIds) s.deletedIds = {};
+        return s;
+      }
     } catch (e) { console.warn("تعذّر تحميل البيانات", e); }
     return JSON.parse(JSON.stringify(defaultState));
   }
   function save() {
     try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
     catch (e) { console.warn("تعذّر الحفظ", e); }
+  }
+  // تُستدعى عند أي تعديل على المهام/الحالات — تحدّث الطابع الزمني وتدفع للمزامنة
+  function touchData() {
+    state.dataUpdatedAt = Date.now();
+    save();
+    schedulePush();
+  }
+
+  /* ==========================================================================
+     المزامنة بين الأجهزة — مخزن سحابي + تشفير من طرف المستخدم
+     البيانات تُرفع مُشفّرة برمز المزامنة، فلا يقرأها إلا من يملك الرمز.
+     ========================================================================== */
+  const SYNC_BUCKET = "9XRaudX2JsgpXP3dBW8HJa"; // kvdb.io
+  const SYNC_URL = (kn) => `https://kvdb.io/${SYNC_BUCKET}/${kn}`;
+  let syncTimer = null, pushTimer = null;
+
+  const hasSync = () => !!(state.settings.syncCode && state.settings.syncCode.trim());
+  function setSyncStatus(txt, cls) {
+    const el = $("#syncStatus");
+    if (el) { el.textContent = txt; el.dataset.state = cls || ""; }
+  }
+
+  async function deriveKey(pass) {
+    const enc = new TextEncoder();
+    const km = await crypto.subtle.importKey("raw", enc.encode(pass), "PBKDF2", false, ["deriveKey"]);
+    return crypto.subtle.deriveKey(
+      { name: "PBKDF2", salt: enc.encode("ahd-alyoum-salt-1"), iterations: 90000, hash: "SHA-256" },
+      km, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+  }
+  async function storeKeyName(pass) {
+    const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("k:" + pass));
+    return "ahd" + Array.from(new Uint8Array(h)).slice(0, 12).map(b => b.toString(16).padStart(2, "0")).join("");
+  }
+  async function encryptPayload(obj, pass) {
+    const key = await deriveKey(pass);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(JSON.stringify(obj)));
+    const buf = new Uint8Array(iv.length + ct.byteLength);
+    buf.set(iv, 0); buf.set(new Uint8Array(ct), iv.length);
+    let s = ""; buf.forEach(b => s += String.fromCharCode(b));
+    return btoa(s);
+  }
+  async function decryptPayload(b64, pass) {
+    const key = await deriveKey(pass);
+    const raw = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+    const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: raw.slice(0, 12) }, key, raw.slice(12));
+    return JSON.parse(new TextDecoder().decode(pt));
+  }
+
+  const dataSnapshot = () => ({
+    tasks: state.tasks, daily: state.daily,
+    deletedIds: state.deletedIds || {}, dataUpdatedAt: state.dataUpdatedAt || 0
+  });
+
+  function mergeData(a, b) {
+    const del = {};
+    [a.deletedIds || {}, b.deletedIds || {}].forEach(src =>
+      Object.keys(src).forEach(id => { del[id] = Math.max(del[id] || 0, src[id] || 0); }));
+    const aNewer = (a.dataUpdatedAt || 0) >= (b.dataUpdatedAt || 0);
+    const map = {};
+    (aNewer ? b.tasks : a.tasks).forEach(t => { map[t.id] = t; });
+    (aNewer ? a.tasks : b.tasks).forEach(t => { map[t.id] = t; });
+    const tasks = Object.values(map).filter(t => !del[t.id]);
+    const daily = {};
+    const older = aNewer ? b : a, newer = aNewer ? a : b;
+    [older.daily || {}, newer.daily || {}].forEach(src =>
+      Object.keys(src).forEach(date => { daily[date] = Object.assign({}, daily[date], src[date]); }));
+    Object.keys(daily).forEach(date =>
+      Object.keys(daily[date]).forEach(tid => { if (del[tid]) delete daily[date][tid]; }));
+    return { tasks, daily, deletedIds: del, dataUpdatedAt: Math.max(a.dataUpdatedAt || 0, b.dataUpdatedAt || 0) };
+  }
+
+  function applyData(d) {
+    state.tasks = d.tasks; state.daily = d.daily;
+    state.deletedIds = d.deletedIds; state.dataUpdatedAt = d.dataUpdatedAt;
+    save();
+    if (typeof renderToday === "function") renderToday();
+    const av = document.querySelector(".view.is-active");
+    if (av && av.id === "view-report" && typeof renderReport === "function") renderReport();
+    if (av && av.id === "view-week" && typeof renderWeek === "function") renderWeek();
+  }
+
+  async function pushNow(dataOverride) {
+    if (!hasSync() || !navigator.onLine) return;
+    const pass = state.settings.syncCode.trim();
+    try {
+      const kn = await storeKeyName(pass);
+      const body = await encryptPayload(dataOverride || dataSnapshot(), pass);
+      const res = await fetch(SYNC_URL(kn), { method: "PUT", body });
+      if (res.ok) { setSyncStatus("متصلة ✓", "ok"); return true; }
+      if (res.status === 403) setSyncStatus("بانتظار تفعيل الخدمة (راجع بريدك)", "err");
+      else setSyncStatus("تعذّر الرفع", "err");
+      return false;
+    } catch (e) { setSyncStatus("تعذّر الرفع", "err"); return false; }
+  }
+
+  async function pullNow(opts) {
+    if (!hasSync() || !navigator.onLine) return;
+    const pass = state.settings.syncCode.trim();
+    try {
+      const kn = await storeKeyName(pass);
+      const res = await fetch(SYNC_URL(kn), { cache: "no-store" });
+      if (res.status === 404) { await pushNow(); return; }
+      if (!res.ok) { setSyncStatus("تعذّر الاتصال", "err"); return; }
+      const b64 = (await res.text()).trim();
+      if (!b64) { await pushNow(); return; }
+      let remote;
+      try { remote = await decryptPayload(b64, pass); }
+      catch (e) { setSyncStatus("رمز المزامنة غير مطابق", "err"); return; }
+      const local = dataSnapshot();
+      // جهاز جديد لم يُعدّل بعد (مجرّد بيانات أولية) يتبنّى البيانات المشتركة كاملةً
+      const freshDevice = (local.dataUpdatedAt || 0) === 0 && remote.tasks && remote.tasks.length;
+      const merged = freshDevice
+        ? { tasks: remote.tasks, daily: remote.daily || {}, deletedIds: remote.deletedIds || {}, dataUpdatedAt: remote.dataUpdatedAt || Date.now() }
+        : mergeData(local, remote);
+      const sig = (x) => JSON.stringify({ t: x.tasks, d: x.daily, x: x.deletedIds });
+      if (sig(local) !== sig(merged)) {
+        applyData(merged);
+        if (opts && opts.announce) pulse("تمت مزامنة مهامك ☁️");
+      }
+      if (sig(remote) !== sig(merged) || (remote.dataUpdatedAt || 0) !== merged.dataUpdatedAt) await pushNow(merged);
+      else setSyncStatus("متصلة ✓", "ok");
+    } catch (e) { setSyncStatus("تعذّر الاتصال", "err"); }
+  }
+
+  function schedulePush() {
+    if (!hasSync()) return;
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(() => pushNow(), 1200);
+  }
+  function startSync(announce) {
+    clearInterval(syncTimer);
+    if (!hasSync()) { setSyncStatus("غير مفعّلة", ""); return; }
+    setSyncStatus("جارٍ الاتصال…", "");
+    pullNow({ announce: !!announce });
+    syncTimer = setInterval(() => pullNow(), 12000);
+  }
+  function enableSync(code) {
+    const c = (code || "").trim();
+    if (!c) { pulse("اكتب رمز المزامنة أولًا"); return; }
+    if (c.length < 4) { pulse("اجعل الرمز 4 أحرف فأكثر"); return; }
+    state.settings.syncCode = c; save();
+    pulse("تم تفعيل المزامنة ☁️");
+    startSync(true);
+  }
+  function disableSync() {
+    state.settings.syncCode = ""; save();
+    clearInterval(syncTimer);
+    setSyncStatus("متوقفة", "");
+    pulse("أُوقفت المزامنة");
+  }
+  function openSettings() {
+    updateNotifButton();
+    $("#syncCode").value = state.settings.syncCode || "";
+    setSyncStatus(hasSync() ? "متصلة ✓" : "غير مفعّلة", hasSync() ? "ok" : "");
+    openModal("#settingsModal");
+    if (hasSync()) pullNow();
   }
 
   /* ---------------- بيانات تجريبية أولية ---------------- */
@@ -1237,7 +1421,7 @@ textarea.input { resize: none; line-height: 1.5; }
     const log = dayLog(selectedDate);
     if (status === "pending") delete log[id];
     else log[id] = { status, reason: reason || null };
-    save();
+    touchData();
     renderToday();
   }
 
@@ -1259,7 +1443,8 @@ textarea.input { resize: none; line-height: 1.5; }
       if (t && confirm(`حذف المهمة: «${t.title}»؟`)) {
         state.tasks = state.tasks.filter(x => x.id !== id);
         Object.values(state.daily).forEach(day => { delete day[id]; });
-        save();
+        state.deletedIds[id] = Date.now();   // شاهدة حذف لمزامنة الحذف
+        touchData();
         renderToday();
       }
     }
@@ -1364,7 +1549,7 @@ textarea.input { resize: none; line-height: 1.5; }
       state.tasks.push(Object.assign({ id: uid() }, data));
       selectedDate = formRep === "once" ? formDate : selectedDate; // انتقل لليوم المختار
     }
-    save();
+    touchData();
     closeModal("#taskModal");
     renderToday();
     const dayNote = (formRep === "once" && formDate !== dateKey()) ? " ليوم " + dayShortLabel(formDate) : "";
@@ -1715,11 +1900,11 @@ textarea.input { resize: none; line-height: 1.5; }
       if (e.target.closest("[data-close-modal]")) closeModal("#taskModal");
       if (e.target.closest("[data-close-reason]")) { closeModal("#reasonModal"); pendingMissedId = null; }
       if (e.target.closest("[data-toggle-theme]")) toggleTheme();
-      if (e.target.closest("[data-open-settings]")) { updateNotifButton(); openModal("#settingsModal"); }
+      if (e.target.closest("[data-open-settings]")) openSettings();
       if (e.target.closest("[data-close-settings]")) closeModal("#settingsModal");
       const nav = e.target.closest("[data-nav]");
       if (nav) {
-        if (nav.dataset.nav === "settings") { updateNotifButton(); openModal("#settingsModal"); }
+        if (nav.dataset.nav === "settings") openSettings();
         else switchView(nav.dataset.nav);
       }
     });
@@ -1754,10 +1939,15 @@ textarea.input { resize: none; line-height: 1.5; }
       if (confirm("تصفير حالات مهام اليوم؟")) {
         state.daily[dateKey()] = {};
         Object.keys(state.settings.notified).forEach(k => { if (k.startsWith(dateKey())) delete state.settings.notified[k]; });
-        save(); renderToday(); closeModal("#settingsModal");
+        touchData(); renderToday(); closeModal("#settingsModal");
         pulse("تم تصفير يومك — ابدأ من جديد");
       }
     });
+
+    // المزامنة بين الأجهزة
+    $("#btnSyncSave").addEventListener("click", () => enableSync($("#syncCode").value));
+    $("#btnSyncOff").addEventListener("click", () => { $("#syncCode").value = ""; disableSync(); });
+    window.addEventListener("online", () => { if (hasSync()) pullNow(); });
 
     // إغلاق النوافذ بمفتاح Escape
     document.addEventListener("keydown", e => {
@@ -1791,10 +1981,13 @@ textarea.input { resize: none; line-height: 1.5; }
     checkReminders();
     setInterval(checkReminders, 20000);
     scheduleReminders();
-    // عند العودة للتطبيق: تحقّق فوري + أعد الجدولة
+    // عند العودة للتطبيق: تحقّق فوري + أعد الجدولة + اسحب المزامنة
     document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) { checkReminders(); scheduleReminders(); }
+      if (!document.hidden) { checkReminders(); scheduleReminders(); if (hasSync()) pullNow(); }
     });
+
+    // بدء المزامنة إن كانت مفعّلة
+    startSync();
 
     // تحديث التواريخ عند تغيّر اليوم
     setInterval(() => { setDates(); }, 60000);
