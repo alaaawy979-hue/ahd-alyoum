@@ -15,10 +15,6 @@
   <link id="touchIcon" rel="apple-touch-icon" />
   <link id="favicon" rel="icon" />
 
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
-
   <style>
 /* ==========================================================================
    عهد اليوم — التصميم
@@ -120,7 +116,7 @@ body, .card, .task, .topbar, .bottomnav, .input, .modal__sheet, .chip, .seg, .se
 html { -webkit-text-size-adjust: 100%; }
 
 body {
-  font-family: "Tajawal", system-ui, "Segoe UI", Tahoma, sans-serif;
+  font-family: system-ui, -apple-system, "Segoe UI", "SF Arabic", "Geeza Pro", "Noto Naskh Arabic", "Droid Arabic Naskh", Tahoma, "Tajawal", sans-serif;
   background: var(--bg);
   color: var(--ink);
   line-height: 1.6;
@@ -632,6 +628,15 @@ textarea.input { resize: none; line-height: 1.5; }
         document.getElementById("touchIcon").href = icon;
       } catch (e) {}
     })();
+  </script>
+
+  <!-- تسجيل Service Worker للعمل دون اتصال (أوفلاين) -->
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("sw.js").catch(function () {});
+      });
+    }
   </script>
 </head>
 <body>
