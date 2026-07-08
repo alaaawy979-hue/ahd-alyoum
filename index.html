@@ -1,0 +1,1598 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0" />
+  <meta name="theme-color" content="#0f766e" />
+  <meta name="description" content="عهد اليوم — تطبيق عربي أنيق لإدارة مهامك اليومية بمتابعة وتحفيز وتقارير." />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="عهد" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <title>عهد اليوم</title>
+
+  <link id="manifestLink" rel="manifest" />
+  <link id="touchIcon" rel="apple-touch-icon" />
+  <link id="favicon" rel="icon" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+/* ==========================================================================
+   عهد اليوم — التصميم
+   Mobile First · RTL · تجربة تطبيق جوال أصلي فاخر
+   ========================================================================== */
+
+:root {
+  /* الألوان الأساسية — أخضر زمردي راقٍ */
+  --primary: #0f766e;
+  --primary-600: #0d6d66;
+  --primary-700: #115e59;
+  --primary-soft: #d5f0ec;
+  --primary-tint: #ecfbf8;
+
+  --accent: #1d4ed8;      /* أزرق ملكي للمسات */
+  --success: #16a34a;
+  --success-soft: #dcfce7;
+  --danger: #e11d48;
+  --danger-soft: #ffe4e6;
+  --warn: #d97706;
+
+  /* محايدات */
+  --bg: #f4f6f8;
+  --surface: #ffffff;
+  --ink: #0f172a;
+  --ink-2: #334155;
+  --muted: #64748b;
+  --line: #e6ebf0;
+
+  /* أولويات */
+  --p-high: #e11d48;
+  --p-mid: #d97706;
+  --p-low: #0ea5e9;
+
+  --radius: 20px;
+  --radius-sm: 14px;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, .06), 0 1px 3px rgba(15, 23, 42, .05);
+  --shadow: 0 6px 20px rgba(15, 23, 42, .07), 0 2px 6px rgba(15, 23, 42, .05);
+  --shadow-lg: 0 18px 45px rgba(15, 23, 42, .16);
+
+  --nav-h: 68px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  --ease: cubic-bezier(.22, 1, .36, 1);
+}
+
+/* ============ الوضع الليلي (الدارك مود) ============ */
+:root[data-theme="dark"] {
+  --primary: #14b8a6;
+  --primary-600: #0d9488;
+  --primary-700: #0f766e;
+  --primary-soft: #123b36;
+  --primary-tint: #10241f;
+
+  --accent: #60a5fa;
+  --success: #22c55e;
+  --success-soft: #143324;
+  --danger: #fb7185;
+  --danger-soft: #3a1620;
+  --warn: #fbbf24;
+
+  --bg: #0b1120;
+  --surface: #151d2e;
+  --ink: #e7ecf4;
+  --ink-2: #b7c2d4;
+  --muted: #8493a9;
+  --line: #263149;
+
+  --p-high: #fb7185;
+  --p-mid: #fbbf24;
+  --p-low: #38bdf8;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
+  --shadow: 0 6px 20px rgba(0, 0, 0, .45);
+  --shadow-lg: 0 18px 45px rgba(0, 0, 0, .6);
+}
+:root[data-theme="dark"] .topbar { background: rgba(15, 21, 34, .82); }
+:root[data-theme="dark"] .bottomnav { background: rgba(15, 21, 34, .88); }
+:root[data-theme="dark"] .seg__btn.is-active { background: var(--surface); }
+:root[data-theme="dark"] .input:focus { background: #0e1626; }
+:root[data-theme="dark"] .input::placeholder { color: #5b6b83; }
+:root[data-theme="dark"] .install-hint { background: linear-gradient(120deg, #132033, #0f1a2b); border-color: #22304a; }
+:root[data-theme="dark"] .install-hint strong { color: #93c5fd; }
+:root[data-theme="dark"] .install-hint p { color: #94a3b8; }
+:root[data-theme="dark"] .hint-note { background: #2a2410; border-color: #4d411a; color: #fbbf24; }
+:root[data-theme="dark"] .celebrate { background: linear-gradient(120deg, #123320, #0f2a1a); border-color: #1c5233; }
+:root[data-theme="dark"] .celebrate strong { color: #4ade80; }
+:root[data-theme="dark"] .celebrate p { color: #a7d8b8; }
+:root[data-theme="dark"] .tag--status.is-pending { background: #1b2434; color: var(--muted); }
+:root[data-theme="dark"] .day-status.s-mid { background: #3a2f10; color: #fbbf24; }
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+[hidden] { display: none !important; }
+body, .card, .task, .topbar, .bottomnav, .input, .modal__sheet, .chip, .seg, .seg__btn, .act, .tag {
+  transition: background-color .3s ease, border-color .3s ease, color .3s ease;
+}
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  font-family: "Tajawal", system-ui, "Segoe UI", Tahoma, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.6;
+  overflow-x: hidden;
+  overscroll-behavior-y: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+input, textarea, select { font-family: inherit; font-size: 16px; }
+::selection { background: var(--primary-soft); }
+
+/* ============ شاشة الترحيب ============ */
+.splash {
+  position: fixed; inset: 0; z-index: 999;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  background: linear-gradient(160deg, var(--primary-700), var(--primary));
+  color: #fff; transition: opacity .5s var(--ease), visibility .5s;
+}
+.splash.is-hidden { opacity: 0; visibility: hidden; }
+.splash__mark {
+  font-size: 60px; font-weight: 800; letter-spacing: 2px;
+  animation: pop .7s var(--ease) both;
+}
+.splash__tagline { opacity: .9; font-weight: 500; animation: fadeUp .7s .15s var(--ease) both; }
+@keyframes pop { from { transform: scale(.8); opacity: 0 } to { transform: scale(1); opacity: 1 } }
+@keyframes fadeUp { from { transform: translateY(10px); opacity: 0 } to { transform: none; opacity: 1 } }
+
+/* ============ الهيكل العام ============ */
+.app { min-height: 100vh; min-height: 100dvh; padding-bottom: calc(var(--nav-h) + var(--safe-bottom)); }
+
+.topbar {
+  position: sticky; top: 0; z-index: 40;
+  padding-top: var(--safe-top);
+  background: rgba(255, 255, 255, .82);
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  border-bottom: 1px solid var(--line);
+}
+.topbar__inner {
+  max-width: 1120px; margin: 0 auto;
+  padding: 12px 18px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand__logo {
+  width: 42px; height: 42px; border-radius: 13px;
+  display: grid; place-items: center;
+  background: linear-gradient(150deg, var(--primary), var(--primary-700));
+  color: #fff; font-weight: 800; font-size: 22px;
+  box-shadow: 0 6px 16px rgba(15, 118, 110, .35);
+}
+.brand__title { font-size: 19px; font-weight: 800; line-height: 1.1; }
+.brand__date { font-size: 12.5px; color: var(--muted); font-weight: 500; }
+
+.icon-btn {
+  width: 42px; height: 42px; border-radius: 12px;
+  display: grid; place-items: center; color: var(--ink-2);
+  transition: background .2s, transform .1s;
+}
+.icon-btn:active { transform: scale(.92); background: var(--line); }
+
+.content { max-width: 1120px; margin: 0 auto; }
+.wrap { padding: 18px 18px 28px; }
+
+/* عروض التنقل */
+.view { display: none; animation: viewIn .35s var(--ease); }
+.view.is-active { display: block; }
+@keyframes viewIn { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
+
+/* ============ البطاقات ============ */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ============ بطاقة العهد (Hero) ============ */
+.hero {
+  padding: 22px;
+  background: linear-gradient(155deg, var(--primary-700), var(--primary) 60%, #0b8f83);
+  color: #fff; border: none;
+  box-shadow: 0 14px 30px rgba(15, 118, 110, .28);
+  position: relative; overflow: hidden;
+}
+.hero::after {
+  content: ""; position: absolute; top: -60px; left: -30px;
+  width: 180px; height: 180px; border-radius: 50%;
+  background: rgba(255, 255, 255, .08);
+}
+.hero__eyebrow { font-size: 13px; opacity: .85; font-weight: 600; }
+.hero__title { font-size: 25px; font-weight: 800; margin: 2px 0 4px; }
+.hero__sub { font-size: 13.5px; opacity: .9; }
+
+.hero__stats { display: flex; align-items: center; gap: 18px; margin-top: 20px; }
+
+.ring { position: relative; width: 108px; height: 108px; flex-shrink: 0; }
+.ring__svg { width: 100%; height: 100%; transform: rotate(-90deg) scaleX(-1); }
+.ring__bg { fill: none; stroke: rgba(255, 255, 255, .22); stroke-width: 10; }
+.ring__fg {
+  fill: none; stroke: #fff; stroke-width: 10; stroke-linecap: round;
+  stroke-dasharray: 326.7; stroke-dashoffset: 326.7;
+  transition: stroke-dashoffset .9s var(--ease);
+}
+.ring__label {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; line-height: 1;
+}
+.ring__pct { font-size: 26px; font-weight: 800; }
+.ring__cap { font-size: 12px; opacity: .85; margin-top: 3px; }
+
+.hero__mini { display: flex; flex-direction: column; gap: 12px; flex: 1; }
+.mini {
+  background: rgba(255, 255, 255, .13); border-radius: 14px;
+  padding: 11px 14px; backdrop-filter: blur(4px);
+}
+.mini__num { display: block; font-size: 20px; font-weight: 800; }
+.mini__cap { font-size: 12px; opacity: .85; }
+
+/* بطاقة احتفالية */
+.celebrate {
+  margin-top: 16px; padding: 16px 18px;
+  display: flex; align-items: center; gap: 14px;
+  background: linear-gradient(120deg, var(--success-soft), #eafff1);
+  border-color: #b6f0c8;
+  animation: viewIn .4s var(--ease);
+}
+.celebrate__emoji { font-size: 32px; }
+.celebrate strong { color: #15803d; font-size: 16px; }
+.celebrate p { font-size: 13px; color: #3f6b4e; }
+
+/* تلميح التثبيت */
+.install-hint {
+  margin-top: 16px; padding: 16px;
+  display: grid; gap: 12px;
+  background: linear-gradient(120deg, #eef4ff, #f7faff);
+  border-color: #d7e3ff;
+}
+.install-hint__body { display: flex; gap: 12px; align-items: flex-start; }
+.install-hint__icon { font-size: 26px; }
+.install-hint strong { display: block; font-size: 15px; color: #1e3a8a; }
+.install-hint p { font-size: 13px; color: #475569; }
+.install-hint__actions { display: flex; gap: 10px; }
+
+/* ============ رؤوس الأقسام ============ */
+.section-head {
+  display: flex; align-items: center; gap: 10px;
+  margin: 24px 2px 12px;
+}
+.section-head__title { font-size: 18px; font-weight: 800; }
+.section-head__badge {
+  background: var(--primary-soft); color: var(--primary-700);
+  font-size: 13px; font-weight: 700; padding: 2px 11px; border-radius: 999px;
+}
+.muted { color: var(--muted); font-size: 14px; }
+
+/* ============ قائمة المهام ============ */
+.task-list { display: flex; flex-direction: column; gap: 14px; }
+
+.task {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 16px;
+  box-shadow: var(--shadow-sm);
+  position: relative; overflow: hidden;
+  animation: taskIn .35s var(--ease) both;
+  transition: transform .2s var(--ease), box-shadow .2s, opacity .3s;
+}
+@keyframes taskIn { from { opacity: 0; transform: translateY(12px) } to { opacity: 1; transform: none } }
+.task::before {
+  content: ""; position: absolute; top: 0; bottom: 0; right: 0; width: 5px;
+  background: var(--p-mid);
+}
+.task[data-priority="high"]::before { background: var(--p-high); }
+.task[data-priority="mid"]::before  { background: var(--p-mid); }
+.task[data-priority="low"]::before  { background: var(--p-low); }
+
+.task.is-done { opacity: .72; }
+.task.is-done .task__title { text-decoration: line-through; color: var(--muted); }
+.task.is-missed { opacity: .82; }
+
+.task__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.task__title { font-size: 17px; font-weight: 700; line-height: 1.35; }
+.task__desc { font-size: 13.5px; color: var(--muted); margin-top: 3px; }
+
+.task__meta { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+.tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px;
+  background: var(--bg); color: var(--ink-2); border: 1px solid var(--line);
+}
+.tag--time { background: var(--primary-tint); color: var(--primary-700); border-color: var(--primary-soft); }
+.tag--status.is-pending { background: #f1f5f9; color: var(--muted); }
+.tag--status.is-done { background: var(--success-soft); color: #15803d; border-color: #bbf7d0; }
+.tag--status.is-missed { background: var(--danger-soft); color: #be123c; border-color: #fecdd3; }
+
+.task__actions { display: flex; gap: 9px; margin-top: 14px; }
+.task__actions .btn { flex: 1; }
+.task__mini { display: flex; gap: 6px; }
+
+.act {
+  width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+  display: grid; place-items: center; color: var(--muted);
+  background: var(--bg); border: 1px solid var(--line);
+  transition: transform .1s, background .2s, color .2s;
+}
+.act:active { transform: scale(.9); }
+.act--edit:hover { color: var(--accent); }
+.act--del:hover { color: var(--danger); }
+
+/* ============ الأزرار ============ */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  font-weight: 700; font-size: 15px; padding: 12px 18px;
+  border-radius: 13px; transition: transform .1s, filter .2s, background .2s;
+  min-height: 46px; user-select: none;
+}
+.btn:active { transform: scale(.97); }
+.btn--primary { background: var(--primary); color: #fff; box-shadow: 0 6px 14px rgba(15, 118, 110, .28); }
+.btn--primary:hover { filter: brightness(1.05); }
+.btn--success { background: var(--success); color: #fff; box-shadow: 0 6px 14px rgba(22, 163, 74, .25); }
+.btn--danger { background: #fff; color: var(--danger); border: 1.5px solid var(--danger-soft); }
+.btn--danger:hover { background: var(--danger-soft); }
+.btn--ghost { background: var(--bg); color: var(--ink-2); border: 1px solid var(--line); }
+.btn--block { width: 100%; }
+.btn--lg { min-height: 54px; font-size: 16px; border-radius: 15px; }
+.btn--sm { min-height: 40px; padding: 8px 14px; font-size: 14px; border-radius: 11px; }
+
+/* ============ الحالة الفارغة ============ */
+.empty { text-align: center; padding: 46px 20px; }
+.empty__art { font-size: 58px; margin-bottom: 8px; }
+.empty h3 { font-size: 18px; font-weight: 800; }
+.empty p { color: var(--muted); margin: 6px 0 18px; }
+
+/* ============ زر الإضافة العائم ============ */
+.fab {
+  position: fixed; z-index: 45;
+  left: 20px; bottom: calc(var(--nav-h) + var(--safe-bottom) + 16px);
+  width: 60px; height: 60px; border-radius: 20px;
+  display: grid; place-items: center; color: #fff;
+  background: linear-gradient(150deg, var(--primary), var(--primary-700));
+  box-shadow: 0 12px 26px rgba(15, 118, 110, .45);
+  transition: transform .15s var(--ease);
+}
+.fab:active { transform: scale(.9) rotate(90deg); }
+
+/* ============ الشريط السفلي ============ */
+.bottomnav {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 44;
+  height: calc(var(--nav-h) + var(--safe-bottom));
+  padding-bottom: var(--safe-bottom);
+  background: rgba(255, 255, 255, .9);
+  backdrop-filter: saturate(180%) blur(16px);
+  -webkit-backdrop-filter: saturate(180%) blur(16px);
+  border-top: 1px solid var(--line);
+  display: flex; align-items: stretch;
+  max-width: 1120px; margin: 0 auto;
+}
+.bottomnav__item {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  color: var(--muted); font-size: 11px; font-weight: 600;
+  transition: color .2s; position: relative;
+}
+.bottomnav__item svg { width: 23px; height: 23px; transition: transform .2s var(--ease); }
+.bottomnav__item.is-active { color: var(--primary); }
+.bottomnav__item.is-active svg { transform: translateY(-2px) scale(1.08); }
+.bottomnav__item:active svg { transform: scale(.85); }
+.bottomnav__spacer { width: 64px; flex-shrink: 0; }
+
+/* ============ النوافذ (Bottom Sheets) ============ */
+.modal { position: fixed; inset: 0; z-index: 100; display: flex; align-items: flex-end; justify-content: center; }
+.modal[hidden] { display: none; }
+.modal__backdrop { position: absolute; inset: 0; background: rgba(15, 23, 42, .5); animation: fade .3s; }
+@keyframes fade { from { opacity: 0 } to { opacity: 1 } }
+
+.modal__sheet {
+  position: relative; width: 100%; max-width: 560px;
+  background: var(--surface); border-radius: 26px 26px 0 0;
+  padding: 10px 20px calc(24px + var(--safe-bottom));
+  max-height: 92vh; overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+  animation: sheetUp .38s var(--ease);
+}
+.modal__sheet--sm { max-width: 460px; }
+@keyframes sheetUp { from { transform: translateY(100%) } to { transform: none } }
+.modal__grab { width: 44px; height: 5px; border-radius: 999px; background: var(--line); margin: 4px auto 14px; }
+.modal__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.modal__head h3 { font-size: 20px; font-weight: 800; }
+
+/* ============ النماذج ============ */
+.form { display: flex; flex-direction: column; gap: 15px; }
+.field { display: flex; flex-direction: column; gap: 7px; }
+.field__label { font-size: 13.5px; font-weight: 700; color: var(--ink-2); }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.input {
+  width: 100%; padding: 13px 14px; border-radius: 13px;
+  border: 1.5px solid var(--line); background: var(--bg); color: var(--ink);
+  transition: border-color .2s, background .2s, box-shadow .2s;
+}
+.input:focus {
+  outline: none; border-color: var(--primary); background: #fff;
+  box-shadow: 0 0 0 4px var(--primary-tint);
+}
+textarea.input { resize: none; line-height: 1.5; }
+
+/* رقائق التصنيف */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  padding: 9px 13px; border-radius: 12px; font-size: 13.5px; font-weight: 600;
+  background: var(--bg); border: 1.5px solid var(--line); color: var(--ink-2);
+  transition: all .18s;
+}
+.chip.is-active { background: var(--primary-tint); border-color: var(--primary); color: var(--primary-700); }
+.chip:active { transform: scale(.95); }
+
+/* المقسّم (Segmented) */
+.seg { display: flex; background: var(--bg); border: 1.5px solid var(--line); border-radius: 13px; padding: 4px; gap: 4px; }
+.seg__btn { flex: 1; padding: 10px; border-radius: 10px; font-weight: 700; font-size: 14px; color: var(--muted); transition: all .2s; }
+.seg__btn.is-active { background: #fff; color: var(--primary-700); box-shadow: var(--shadow-sm); }
+
+/* أسباب عدم الإنجاز */
+.reasons { display: flex; flex-direction: column; gap: 10px; }
+.reason {
+  text-align: right; padding: 15px 16px; border-radius: 14px; font-size: 15.5px; font-weight: 600;
+  background: var(--bg); border: 1.5px solid var(--line); color: var(--ink);
+  transition: all .18s;
+}
+.reason:hover { border-color: var(--danger-soft); }
+.reason:active { transform: scale(.98); background: var(--danger-soft); }
+
+/* ============ الإعدادات ============ */
+.settings { display: flex; flex-direction: column; gap: 6px; }
+.settings__row {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  padding: 15px 4px; border-bottom: 1px solid var(--line);
+}
+.settings__row:last-of-type { border-bottom: none; }
+.settings__row strong { font-size: 15px; }
+.settings__row--danger strong { color: var(--danger); }
+.hint-note {
+  font-size: 13px; color: var(--warn); background: #fffbeb;
+  border: 1px solid #fde68a; border-radius: 12px; padding: 11px 13px; margin: 8px 0;
+}
+.app-credit { text-align: center; color: var(--muted); font-size: 12.5px; margin-top: 14px; }
+
+/* مفتاح التبديل */
+.switch { position: relative; width: 50px; height: 30px; flex-shrink: 0; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.switch__slider {
+  position: absolute; inset: 0; background: var(--line); border-radius: 999px; transition: .25s;
+}
+.switch__slider::before {
+  content: ""; position: absolute; width: 24px; height: 24px; right: 3px; top: 3px;
+  background: #fff; border-radius: 50%; transition: .25s; box-shadow: var(--shadow-sm);
+}
+.switch input:checked + .switch__slider { background: var(--primary); }
+.switch input:checked + .switch__slider::before { transform: translateX(-20px); }
+
+/* ============ التقرير ============ */
+.report { display: flex; flex-direction: column; gap: 16px; margin-top: 14px; }
+.report-motiv {
+  padding: 20px; border-radius: var(--radius); color: #fff; font-weight: 700; font-size: 17px;
+  text-align: center; box-shadow: var(--shadow);
+}
+.report-motiv.tone-high { background: linear-gradient(150deg, #16a34a, #15803d); }
+.report-motiv.tone-mid  { background: linear-gradient(150deg, var(--primary), var(--primary-700)); }
+.report-motiv.tone-low  { background: linear-gradient(150deg, #f59e0b, #d97706); }
+.report-motiv small { display: block; font-weight: 500; opacity: .9; font-size: 13px; margin-top: 6px; }
+
+.report-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.stat-card { padding: 18px; text-align: center; }
+.stat-card__num { font-size: 30px; font-weight: 800; line-height: 1; }
+.stat-card__cap { font-size: 13px; color: var(--muted); margin-top: 6px; }
+.stat-card.good .stat-card__num { color: var(--success); }
+.stat-card.bad .stat-card__num { color: var(--danger); }
+
+.report-block { padding: 18px; }
+.report-block h4 { font-size: 15px; font-weight: 800; margin-bottom: 12px; }
+.reason-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed var(--line); font-size: 14px; }
+.reason-row:last-child { border-bottom: none; }
+.reason-row b { color: var(--danger); }
+.top-cat { display: inline-flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 800; color: var(--primary-700); }
+
+/* ============ الأسبوع ============ */
+.week { display: flex; flex-direction: column; gap: 12px; margin-top: 14px; }
+.day-card { padding: 15px 16px; display: flex; align-items: center; gap: 14px; }
+.day-card__date { text-align: center; min-width: 52px; }
+.day-card__day { font-size: 13px; color: var(--muted); font-weight: 600; }
+.day-card__num { font-size: 22px; font-weight: 800; }
+.day-card__body { flex: 1; }
+.day-card__top { display: flex; justify-content: space-between; font-size: 13.5px; margin-bottom: 7px; }
+.day-card__pct { font-weight: 800; }
+.bar { height: 9px; background: var(--bg); border-radius: 999px; overflow: hidden; border: 1px solid var(--line); }
+.bar__fill { height: 100%; border-radius: 999px; transition: width .7s var(--ease); background: linear-gradient(90deg, var(--primary), #14b8a6); }
+.day-card.is-today { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-tint); }
+.day-status { font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 999px; }
+.day-status.s-high { background: var(--success-soft); color: #15803d; }
+.day-status.s-mid { background: #fef3c7; color: #b45309; }
+.day-status.s-low { background: var(--danger-soft); color: #be123c; }
+.day-status.s-none { background: var(--bg); color: var(--muted); }
+
+/* ============ التنبيه داخل التطبيق (Toast) ============ */
+.toast {
+  position: fixed; z-index: 200; top: calc(var(--safe-top) + 14px); left: 50%; transform: translateX(-50%) translateY(-120%);
+  background: var(--ink); color: #fff; padding: 13px 18px; border-radius: 16px;
+  display: flex; align-items: center; gap: 10px; max-width: 90%;
+  box-shadow: var(--shadow-lg); font-weight: 600; font-size: 14.5px;
+  transition: transform .45s var(--ease);
+}
+.toast.is-show { transform: translateX(-50%) translateY(0); }
+.toast__icon { font-size: 20px; }
+
+/* عناصر خاصة باللابتوب — مخفية افتراضيًا (قبل استعلامات الوسائط لضمان الأسبقية) */
+.side-panel { display: none; }
+.desktop-nav { display: none; }
+.desktop-add { display: none; }
+
+/* ============ التجاوب: تابلت ============ */
+@media (min-width: 700px) {
+  .wrap { padding: 26px 26px 34px; }
+  .hero { padding: 30px; }
+  .hero__title { font-size: 30px; }
+  .task-list { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .task-list .task { animation: none; }
+  .report-grid { grid-template-columns: repeat(4, 1fr); }
+  .week { display: grid; grid-template-columns: 1fr 1fr; }
+}
+
+/* ============ التجاوب: لابتوب وشاشات كبيرة ============ */
+@media (min-width: 1000px) {
+  .fab { display: none; }              /* نستخدم زر رأس القسم بدل العائم */
+  .bottomnav { display: none; }        /* تنقل جانبي/علوي على اللابتوب */
+  .app { padding-bottom: 0; }
+
+  .topbar__inner { padding: 14px 28px; }
+  .desktop-nav { display: flex; }
+
+  .content { display: grid; grid-template-columns: minmax(0,1fr) 360px; gap: 26px; align-items: start; padding: 0 28px; max-width: 1240px; }
+  .view { grid-column: 1; min-width: 0; }
+  .view.is-active { display: block; }
+  .side-panel { display: block; grid-column: 2; position: sticky; top: 92px; padding: 24px 0; }
+  .wrap { padding: 24px 0; }
+
+  .task-list { grid-template-columns: 1fr 1fr; }
+  .report-grid { grid-template-columns: 1fr 1fr; }
+  .week { grid-template-columns: 1fr; }
+}
+
+/* اللوحة الجانبية (لابتوب فقط) */
+.side-panel .side-card { padding: 20px; margin-bottom: 16px; }
+.side-panel h4 { font-size: 15px; font-weight: 800; margin-bottom: 12px; }
+.side-panel .muted { font-size: 13px; }
+
+/* شريط تنقل علوي للّابتوب */
+.desktop-nav { gap: 6px; margin: 0 auto; }
+.desktop-nav__item {
+  padding: 9px 18px; border-radius: 12px; font-weight: 700; font-size: 15px; color: var(--muted);
+  transition: all .2s;
+}
+.desktop-nav__item.is-active { background: var(--primary-tint); color: var(--primary-700); }
+.desktop-nav__item:hover { color: var(--ink); }
+.desktop-add { display: none; }
+@media (min-width: 1000px) { .desktop-add { display: inline-flex; } }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+  </style>
+
+  <!-- ضبط الوضع الليلي مبكرًا لمنع وميض الشاشة -->
+  <script>
+    (function () {
+      try {
+        var s = JSON.parse(localStorage.getItem("ahd_alyoum_v1") || "{}");
+        var pref = s.settings && s.settings.theme;
+        var t = pref || (window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", t);
+        var m = document.querySelector('meta[name="theme-color"]');
+        if (m) m.setAttribute("content", t === "dark" ? "#0b1120" : "#0f766e");
+      } catch (e) {}
+    })();
+  </script>
+
+  <!-- بناء الـ manifest والأيقونات داخليًا (ملف واحد مستقل، قابل للتثبيت كـ PWA) -->
+  <script>
+    (function () {
+      var SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 512 512\" width=\"512\" height=\"512\"> <defs> <linearGradient id=\"g\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\"> <stop offset=\"0\" stop-color=\"#115e59\"/> <stop offset=\"0.55\" stop-color=\"#0f766e\"/> <stop offset=\"1\" stop-color=\"#0b8f83\"/> </linearGradient> </defs> <rect width=\"512\" height=\"512\" rx=\"112\" fill=\"url(#g)\"/> <circle cx=\"256\" cy=\"256\" r=\"150\" fill=\"none\" stroke=\"#ffffff\" stroke-opacity=\"0.25\" stroke-width=\"20\"/> <path d=\"M156 262 l60 60 l150 -150\" fill=\"none\" stroke=\"#ffffff\" stroke-width=\"34\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/> <text x=\"256\" y=\"430\" font-family=\"Tajawal, Segoe UI, sans-serif\" font-size=\"90\" font-weight=\"800\" fill=\"#ffffff\" text-anchor=\"middle\">عهد</text> </svg>";
+      var icon = "data:image/svg+xml," + encodeURIComponent(SVG);
+      var manifest = {
+        name: "عهد اليوم",
+        short_name: "عهد",
+        description: "تطبيق عربي لإدارة المهام اليومية بمتابعة وتحفيز وتقارير يومية وأسبوعية.",
+        lang: "ar", dir: "rtl",
+        start_url: ".", scope: ".",
+        display: "standalone", orientation: "portrait",
+        background_color: "#0f766e", theme_color: "#0f766e",
+        categories: ["productivity", "lifestyle"],
+        icons: [
+          { src: icon, sizes: "192x192", type: "image/svg+xml", purpose: "any" },
+          { src: icon, sizes: "512x512", type: "image/svg+xml", purpose: "any" },
+          { src: icon, sizes: "any", type: "image/svg+xml", purpose: "maskable" }
+        ]
+      };
+      try {
+        document.getElementById("manifestLink").href =
+          "data:application/manifest+json," + encodeURIComponent(JSON.stringify(manifest));
+        document.getElementById("favicon").href = icon;
+        document.getElementById("touchIcon").href = icon;
+      } catch (e) {}
+    })();
+  </script>
+</head>
+<body>
+<!-- ===== شاشة الترحيب / السبلاش ===== -->
+  <div id="splash" class="splash">
+    <div class="splash__mark">عهد</div>
+    <div class="splash__tagline">ابدأ يومك بوضوح</div>
+  </div>
+
+  <!-- ===== التطبيق ===== -->
+  <div id="app" class="app" hidden>
+
+    <!-- الشريط العلوي -->
+    <header class="topbar">
+      <div class="topbar__inner">
+        <div class="brand">
+          <div class="brand__logo" aria-hidden="true">ع</div>
+          <div class="brand__text">
+            <h1 class="brand__title">عهد اليوم</h1>
+            <span id="topbarDate" class="brand__date"></span>
+          </div>
+        </div>
+        <nav class="desktop-nav">
+          <button class="desktop-nav__item is-active" data-nav="today">اليوم</button>
+          <button class="desktop-nav__item" data-nav="report">التقرير</button>
+          <button class="desktop-nav__item" data-nav="week">الأسبوع</button>
+        </nav>
+
+        <div style="display:flex;align-items:center;gap:10px">
+          <button class="btn btn--primary btn--sm desktop-add" data-open-add>+ مهمة</button>
+          <button id="btnTheme" class="icon-btn" title="الوضع الليلي" aria-label="تبديل الوضع الليلي" data-toggle-theme></button>
+          <button id="btnNotifTop" class="icon-btn" title="الإعدادات" aria-label="الإعدادات" data-open-settings>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- المحتوى -->
+    <main class="content">
+
+      <!-- ============ لوحة اليوم ============ -->
+      <section id="view-today" class="view is-active">
+        <div class="wrap">
+          <!-- بطاقة العهد -->
+          <div class="hero card">
+            <p class="hero__eyebrow">لوحة اليوم</p>
+            <h2 class="hero__title">ما عهدك لهذا اليوم؟</h2>
+            <p class="hero__sub" id="heroDate"></p>
+
+            <div class="hero__stats">
+              <div class="ring" id="ringWrap">
+                <svg viewBox="0 0 120 120" class="ring__svg">
+                  <circle class="ring__bg" cx="60" cy="60" r="52"></circle>
+                  <circle class="ring__fg" id="ringFg" cx="60" cy="60" r="52"></circle>
+                </svg>
+                <div class="ring__label">
+                  <span id="ringPct" class="ring__pct">0%</span>
+                  <span class="ring__cap">الإنجاز</span>
+                </div>
+              </div>
+
+              <div class="hero__mini">
+                <div class="mini">
+                  <span class="mini__num" id="statDone">0/0</span>
+                  <span class="mini__cap">مهام منجزة</span>
+                </div>
+                <div class="mini">
+                  <span class="mini__num" id="statStreak">0 🔥</span>
+                  <span class="mini__cap">سلسلة الالتزام</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- بطاقة احتفالية -->
+          <div id="celebrate" class="celebrate card" hidden>
+            <span class="celebrate__emoji">🎉</span>
+            <div>
+              <strong>أتممت عهد اليوم، أحسنت.</strong>
+              <p>كل إنجاز صغير يصنع أثرًا كبيرًا.</p>
+            </div>
+          </div>
+
+          <!-- تلميح التثبيت -->
+          <div id="installHint" class="install-hint card" hidden>
+            <span class="install-hint__icon">📲</span>
+            <div class="install-hint__body">
+              <strong>ثبّت عهد اليوم على جوالك</strong>
+              <p>أضِفه للشاشة الرئيسية لاستخدام أسرع، وتبقى قريبًا من عهدك.</p>
+            </div>
+            <div class="install-hint__actions">
+              <button id="btnInstall" class="btn btn--sm btn--primary">تثبيت التطبيق</button>
+              <button id="btnInstallDismiss" class="btn btn--sm btn--ghost">لاحقًا</button>
+            </div>
+          </div>
+
+          <div class="section-head">
+            <h3 class="section-head__title">مهام اليوم</h3>
+            <span id="taskCount" class="section-head__badge">0</span>
+          </div>
+
+          <div id="taskList" class="task-list"></div>
+
+          <!-- حالة فارغة -->
+          <div id="emptyState" class="empty" hidden>
+            <div class="empty__art">📝</div>
+            <h3>لم تُضِف عهدك لهذا اليوم بعد.</h3>
+            <p>ابدأ بخطوة صغيرة واضحة.</p>
+            <button class="btn btn--primary" data-open-add>أضف أول مهمة</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ تقرير اليوم ============ -->
+      <section id="view-report" class="view">
+        <div class="wrap">
+          <div class="section-head"><h3 class="section-head__title">تقرير اليوم</h3></div>
+          <p class="muted">راجع يومك، وحسّن غدك.</p>
+
+          <div id="reportBody" class="report"></div>
+        </div>
+      </section>
+
+      <!-- ============ الأسبوع ============ -->
+      <section id="view-week" class="view">
+        <div class="wrap">
+          <div class="section-head"><h3 class="section-head__title">الأسبوع</h3></div>
+          <p class="muted">آخر 7 أيام من عهودك.</p>
+          <div id="weekBody" class="week"></div>
+        </div>
+      </section>
+
+      <!-- اللوحة الجانبية (لابتوب) -->
+      <aside id="sidePanel" class="side-panel"></aside>
+
+    </main>
+
+    <!-- زر الإضافة العائم -->
+    <button id="fab" class="fab" data-open-add aria-label="إضافة مهمة">
+      <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+
+    <!-- الشريط السفلي -->
+    <nav class="bottomnav" role="navigation">
+      <button class="bottomnav__item is-active" data-nav="today">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>
+        <span>اليوم</span>
+      </button>
+      <button class="bottomnav__item" data-nav="report">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg>
+        <span>التقرير</span>
+      </button>
+      <div class="bottomnav__spacer"></div>
+      <button class="bottomnav__item" data-nav="week">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        <span>الأسبوع</span>
+      </button>
+      <button class="bottomnav__item" data-nav="settings" id="navSettings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span>الإعدادات</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- ===== نافذة إضافة/تعديل مهمة ===== -->
+  <div id="taskModal" class="modal" hidden>
+    <div class="modal__backdrop" data-close-modal></div>
+    <div class="modal__sheet" role="dialog" aria-modal="true" aria-labelledby="taskModalTitle">
+      <div class="modal__grab"></div>
+      <div class="modal__head">
+        <h3 id="taskModalTitle">مهمة جديدة</h3>
+        <button class="icon-btn" data-close-modal aria-label="إغلاق">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <form id="taskForm" class="form">
+        <input type="hidden" id="fId" />
+
+        <label class="field">
+          <span class="field__label">عنوان المهمة</span>
+          <input id="fTitle" class="input" type="text" placeholder="مثال: قراءة صفحتين" required maxlength="80" />
+        </label>
+
+        <label class="field">
+          <span class="field__label">وصف اختياري</span>
+          <textarea id="fDesc" class="input" rows="2" placeholder="تفاصيل تساعدك على الوضوح" maxlength="200"></textarea>
+        </label>
+
+        <div class="field-row">
+          <label class="field">
+            <span class="field__label">وقت التنبيه</span>
+            <input id="fTime" class="input" type="time" />
+          </label>
+          <label class="field">
+            <span class="field__label">الأولوية</span>
+            <select id="fPriority" class="input">
+              <option value="high">عالية</option>
+              <option value="mid" selected>متوسطة</option>
+              <option value="low">منخفضة</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="field">
+          <span class="field__label">التصنيف</span>
+          <div id="fCategory" class="chips" role="radiogroup">
+            <button type="button" class="chip is-active" data-cat="عبادة">🕌 عبادة</button>
+            <button type="button" class="chip" data-cat="دراسة">📚 دراسة</button>
+            <button type="button" class="chip" data-cat="عمل">💼 عمل</button>
+            <button type="button" class="chip" data-cat="رياضة">🏃 رياضة</button>
+            <button type="button" class="chip" data-cat="عادة">🔁 عادة</button>
+            <button type="button" class="chip" data-cat="أخرى">✨ أخرى</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="field__label">التكرار</span>
+          <div id="fRepeat" class="seg">
+            <button type="button" class="seg__btn is-active" data-rep="once">مرة واحدة</button>
+            <button type="button" class="seg__btn" data-rep="daily">يوميًا</button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn--primary btn--block btn--lg">حفظ المهمة</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== نافذة سبب عدم الإنجاز ===== -->
+  <div id="reasonModal" class="modal" hidden>
+    <div class="modal__backdrop" data-close-reason></div>
+    <div class="modal__sheet modal__sheet--sm" role="dialog" aria-modal="true">
+      <div class="modal__grab"></div>
+      <div class="modal__head"><h3>ما سبب عدم الإنجاز؟</h3></div>
+      <p class="muted" style="margin:-6px 0 14px">لا بأس، نسجّلها لنحسّن غدًا.</p>
+      <div class="reasons">
+        <button class="reason" data-reason="نسيت">🙈 نسيت</button>
+        <button class="reason" data-reason="تكاسلت">😴 تكاسلت</button>
+        <button class="reason" data-reason="لم أملك وقتًا">⏳ لم أملك وقتًا</button>
+        <button class="reason" data-reason="كانت المهمة صعبة">🧗 كانت صعبة</button>
+        <button class="reason" data-reason="ظرف خارج عني">🌧️ ظرف خارج عني</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== نافذة الإعدادات ===== -->
+  <div id="settingsModal" class="modal" hidden>
+    <div class="modal__backdrop" data-close-settings></div>
+    <div class="modal__sheet" role="dialog" aria-modal="true">
+      <div class="modal__grab"></div>
+      <div class="modal__head">
+        <h3>الإعدادات</h3>
+        <button class="icon-btn" data-close-settings aria-label="إغلاق">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="settings">
+        <div class="settings__row">
+          <div>
+            <strong>الوضع الليلي</strong>
+            <p class="muted">مظهر داكن مريح للعين.</p>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="toggleDark" />
+            <span class="switch__slider"></span>
+          </label>
+        </div>
+
+        <div class="settings__row">
+          <div>
+            <strong>تنبيهات المتصفح</strong>
+            <p class="muted">إشعار عند حلول وقت المهمة.</p>
+          </div>
+          <button id="btnNotif" class="btn btn--sm btn--primary">تفعيل</button>
+        </div>
+
+        <div class="settings__row">
+          <div>
+            <strong>صوت التنبيه</strong>
+            <p class="muted">نغمة خفيفة غير مزعجة.</p>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="toggleSound" checked />
+            <span class="switch__slider"></span>
+          </label>
+        </div>
+
+        <p class="hint-note">🔔 تعمل التنبيهات بشكل أفضل عند بقاء التطبيق مفتوحًا.</p>
+
+        <div class="settings__row settings__row--danger">
+          <div>
+            <strong>تصفير بيانات اليوم</strong>
+            <p class="muted">يحذف حالات مهام اليوم فقط.</p>
+          </div>
+          <button id="btnResetDay" class="btn btn--sm btn--ghost">تصفير</button>
+        </div>
+
+        <p class="app-credit">عهد اليوم — كل إنجاز صغير يصنع أثرًا كبيرًا.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- تنبيه داخل التطبيق -->
+  <div id="toast" class="toast" hidden>
+    <span class="toast__icon">🔔</span>
+    <span id="toastText" class="toast__text"></span>
+  </div>
+
+  <script>
+/* ==========================================================================
+   عهد اليوم — منطق التطبيق
+   تخزين محلي · تنبيهات · تقارير · سلسلة التزام · PWA
+   ========================================================================== */
+(function () {
+  "use strict";
+
+  /* ---------------- أدوات مساعدة ---------------- */
+  const $  = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+  const AR_DAYS = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+  const AR_MONTHS = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو",
+                     "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
+
+  const CAT_ICONS = { "عبادة": "🕌", "دراسة": "📚", "عمل": "💼", "رياضة": "🏃", "عادة": "🔁", "أخرى": "✨" };
+  const PRIORITY_AR = { high: "عالية", mid: "متوسطة", low: "منخفضة" };
+  const PRIORITY_ICON = { high: "🔴", mid: "🟠", low: "🔵" };
+
+  const dateKey = (d = new Date()) => {
+    const x = new Date(d);
+    return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+  };
+  const fmtLongDate = (d = new Date()) =>
+    `${AR_DAYS[d.getDay()]}، ${d.getDate()} ${AR_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+
+  /* ---------------- الحالة والتخزين ---------------- */
+  const STORE_KEY = "ahd_alyoum_v1";
+  const defaultState = {
+    tasks: [],            // القوالب: { id, title, desc, time, category, repeat, priority, date }
+    daily: {},            // { 'YYYY-MM-DD': { taskId: { status:'done'|'missed', reason } } }
+    settings: { sound: true, notifPermission: "default", installDismissed: false, notified: {}, theme: null },
+    seeded: false
+  };
+
+  let state = load();
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      if (raw) return Object.assign({}, defaultState, JSON.parse(raw));
+    } catch (e) { console.warn("تعذّر تحميل البيانات", e); }
+    return JSON.parse(JSON.stringify(defaultState));
+  }
+  function save() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+    catch (e) { console.warn("تعذّر الحفظ", e); }
+  }
+
+  /* ---------------- بيانات تجريبية أولية ---------------- */
+  function seedIfEmpty() {
+    if (state.seeded || state.tasks.length) return;
+    const today = dateKey();
+    state.tasks = [
+      { id: uid(), title: "أذكار الصباح", desc: "قراءة أذكار الصباح بتدبّر", time: "06:30", category: "عبادة", repeat: "daily", priority: "high", date: today },
+      { id: uid(), title: "قراءة 10 صفحات", desc: "من الكتاب الحالي", time: "20:00", category: "دراسة", repeat: "daily", priority: "mid", date: today },
+      { id: uid(), title: "المشي 30 دقيقة", desc: "", time: "17:00", category: "رياضة", repeat: "daily", priority: "low", date: today }
+    ];
+    state.seeded = true;
+    save();
+  }
+
+  /* ---------------- منطق المهام ---------------- */
+  function todayTasks() {
+    const today = dateKey();
+    return state.tasks
+      .filter(t => t.repeat === "daily" || t.date === today)
+      .sort((a, b) => {
+        const order = { high: 0, mid: 1, low: 2 };
+        if ((a.time || "99") !== (b.time || "99")) return (a.time || "99:99").localeCompare(b.time || "99:99");
+        return order[a.priority] - order[b.priority];
+      });
+  }
+
+  function dayLog(key = dateKey()) {
+    if (!state.daily[key]) state.daily[key] = {};
+    return state.daily[key];
+  }
+  function taskStatus(taskId, key = dateKey()) {
+    const log = state.daily[key];
+    return log && log[taskId] ? log[taskId].status : "pending";
+  }
+
+  function dayStats(key = dateKey()) {
+    // يحسب مهام ذلك اليوم (اليومية + مهام اليوم لمرة واحدة)
+    const tasks = state.tasks.filter(t => t.repeat === "daily" || t.date === key);
+    const total = tasks.length;
+    let done = 0, missed = 0;
+    tasks.forEach(t => {
+      const s = taskStatus(t.id, key);
+      if (s === "done") done++;
+      else if (s === "missed") missed++;
+    });
+    const pct = total ? Math.round((done / total) * 100) : 0;
+    return { total, done, missed, pending: total - done - missed, pct };
+  }
+
+  function currentStreak() {
+    // عدد الأيام المتتالية (حتى اليوم أو الأمس) التي أُنجزت فيها كل المهام
+    let streak = 0;
+    for (let i = 0; i < 365; i++) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      const key = dateKey(d);
+      const st = dayStats(key);
+      if (st.total > 0 && st.done === st.total) {
+        streak++;
+      } else if (i === 0) {
+        continue; // اليوم قد لا يكون اكتمل بعد — لا نكسر السلسلة
+      } else {
+        break;
+      }
+    }
+    return streak;
+  }
+
+  /* ---------------- العرض: لوحة اليوم ---------------- */
+  const RING_CIRC = 2 * Math.PI * 52; // ~326.7
+
+  function renderToday() {
+    const st = dayStats();
+    // الحلقة
+    const ringFg = $("#ringFg");
+    ringFg.style.strokeDasharray = RING_CIRC;
+    ringFg.style.strokeDashoffset = RING_CIRC - (st.pct / 100) * RING_CIRC;
+    $("#ringPct").textContent = st.pct + "%";
+    $("#statDone").textContent = `${st.done}/${st.total}`;
+    $("#statStreak").textContent = `${currentStreak()} 🔥`;
+
+    // بطاقة الاحتفال
+    $("#celebrate").hidden = !(st.total > 0 && st.done === st.total);
+
+    // القائمة
+    const list = $("#taskList");
+    const tasks = todayTasks();
+    $("#taskCount").textContent = tasks.length;
+
+    if (!tasks.length) {
+      list.innerHTML = "";
+      $("#emptyState").hidden = false;
+    } else {
+      $("#emptyState").hidden = true;
+      list.innerHTML = tasks.map(taskCardHTML).join("");
+    }
+
+    renderSidePanel();
+  }
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  }
+
+  function taskCardHTML(t) {
+    const status = taskStatus(t.id);
+    const statusMeta = {
+      pending: { cls: "is-pending", label: "لم تبدأ" },
+      done:    { cls: "is-done",    label: "تم الإنجاز" },
+      missed:  { cls: "is-missed",  label: "لم يتم الإنجاز" }
+    }[status];
+
+    const stateClass = status === "done" ? "is-done" : status === "missed" ? "is-missed" : "";
+
+    return `
+      <article class="task ${stateClass}" data-priority="${t.priority}" data-id="${t.id}">
+        <div class="task__head">
+          <div>
+            <div class="task__title">${esc(t.title)}</div>
+            ${t.desc ? `<div class="task__desc">${esc(t.desc)}</div>` : ""}
+          </div>
+        </div>
+        <div class="task__meta">
+          <span class="tag">${CAT_ICONS[t.category] || "✨"} ${esc(t.category)}</span>
+          ${t.time ? `<span class="tag tag--time">⏰ ${esc(t.time)}</span>` : ""}
+          <span class="tag">${PRIORITY_ICON[t.priority]} ${PRIORITY_AR[t.priority]}</span>
+          <span class="tag tag--status ${statusMeta.cls}">${statusMeta.label}</span>
+        </div>
+        <div class="task__actions">
+          <button class="btn ${status === "done" ? "btn--ghost" : "btn--success"} btn--sm" data-act="done" data-id="${t.id}">✅ أنجزت</button>
+          <button class="btn btn--danger btn--sm" data-act="missed" data-id="${t.id}">❌ لم أنجز</button>
+          <div class="task__mini">
+            <button class="act act--edit" data-act="edit" data-id="${t.id}" aria-label="تعديل">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+            </button>
+            <button class="act act--del" data-act="del" data-id="${t.id}" aria-label="حذف">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+            </button>
+          </div>
+        </div>
+      </article>`;
+  }
+
+  /* ---------------- إجراءات المهمة ---------------- */
+  let pendingMissedId = null;
+
+  function setStatus(id, status, reason) {
+    const log = dayLog();
+    if (status === "pending") delete log[id];
+    else log[id] = { status, reason: reason || null };
+    save();
+    renderToday();
+  }
+
+  function onTaskAction(act, id) {
+    if (act === "done") {
+      const cur = taskStatus(id);
+      setStatus(id, cur === "done" ? "pending" : "done");
+      if (cur !== "done") {
+        pulse("أتممت هذه المهمة، أحسنت ✨");
+        playChime();
+      }
+    } else if (act === "missed") {
+      pendingMissedId = id;
+      openModal("#reasonModal");
+    } else if (act === "edit") {
+      openTaskModal(id);
+    } else if (act === "del") {
+      const t = state.tasks.find(x => x.id === id);
+      if (t && confirm(`حذف المهمة: «${t.title}»؟`)) {
+        state.tasks = state.tasks.filter(x => x.id !== id);
+        Object.values(state.daily).forEach(day => { delete day[id]; });
+        save();
+        renderToday();
+      }
+    }
+  }
+
+  /* ---------------- نافذة إضافة/تعديل ---------------- */
+  let editingId = null;
+  let formCat = "عبادة";
+  let formRep = "once";
+
+  function openTaskModal(id) {
+    editingId = id || null;
+    const f = $("#taskForm");
+    f.reset();
+    if (id) {
+      const t = state.tasks.find(x => x.id === id);
+      $("#taskModalTitle").textContent = "تعديل المهمة";
+      $("#fId").value = t.id;
+      $("#fTitle").value = t.title;
+      $("#fDesc").value = t.desc || "";
+      $("#fTime").value = t.time || "";
+      $("#fPriority").value = t.priority;
+      formCat = t.category; formRep = t.repeat;
+    } else {
+      $("#taskModalTitle").textContent = "مهمة جديدة";
+      $("#fId").value = "";
+      formCat = "عبادة"; formRep = "once";
+      $("#fPriority").value = "mid";
+    }
+    // تحديث الرقائق والمقسّم
+    $$("#fCategory .chip").forEach(c => c.classList.toggle("is-active", c.dataset.cat === formCat));
+    $$("#fRepeat .seg__btn").forEach(b => b.classList.toggle("is-active", b.dataset.rep === formRep));
+    openModal("#taskModal");
+    setTimeout(() => $("#fTitle").focus(), 350);
+  }
+
+  $("#fCategory").addEventListener("click", e => {
+    const c = e.target.closest(".chip"); if (!c) return;
+    formCat = c.dataset.cat;
+    $$("#fCategory .chip").forEach(x => x.classList.toggle("is-active", x === c));
+  });
+  $("#fRepeat").addEventListener("click", e => {
+    const b = e.target.closest(".seg__btn"); if (!b) return;
+    formRep = b.dataset.rep;
+    $$("#fRepeat .seg__btn").forEach(x => x.classList.toggle("is-active", x === b));
+  });
+
+  $("#taskForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const title = $("#fTitle").value.trim();
+    if (!title) return;
+    const data = {
+      title,
+      desc: $("#fDesc").value.trim(),
+      time: $("#fTime").value,
+      category: formCat,
+      repeat: formRep,
+      priority: $("#fPriority").value
+    };
+    if (editingId) {
+      const t = state.tasks.find(x => x.id === editingId);
+      Object.assign(t, data);
+    } else {
+      state.tasks.push(Object.assign({ id: uid(), date: dateKey() }, data));
+    }
+    save();
+    closeModal("#taskModal");
+    renderToday();
+    pulse(editingId ? "تم تحديث المهمة" : "أُضيفت المهمة إلى عهد اليوم");
+    editingId = null;
+  });
+
+  /* ---------------- نافذة سبب عدم الإنجاز ---------------- */
+  $("#reasonModal").addEventListener("click", e => {
+    const r = e.target.closest(".reason");
+    if (r && pendingMissedId) {
+      setStatus(pendingMissedId, "missed", r.dataset.reason);
+      pendingMissedId = null;
+      closeModal("#reasonModal");
+      pulse("سجّلنا السبب — غدًا أوضح بإذن الله");
+    }
+  });
+
+  /* ---------------- التقرير ---------------- */
+  function renderReport() {
+    const st = dayStats();
+    let tone, msg, sub;
+    if (st.total === 0) { tone = "mid"; msg = "لم تبدأ عهد اليوم بعد"; sub = "أضف مهمة واحدة وابدأ بوضوح."; }
+    else if (st.pct >= 90) { tone = "high"; msg = "يوم عظيم، التزامك اليوم كان مميزًا."; sub = "أتممت عهد اليوم، أحسنت."; }
+    else if (st.pct >= 60) { tone = "mid"; msg = "يوم جيد، بقي القليل ليكون يومك أقوى."; sub = "كل إنجاز صغير يصنع أثرًا كبيرًا."; }
+    else { tone = "low"; msg = "لا بأس، المهم أن تبدأ من جديد غدًا بخطة أخف وأوضح."; sub = "راجع يومك، وحسّن غدك."; }
+
+    // أكثر تصنيف أُنجز
+    const catCount = {};
+    const log = state.daily[dateKey()] || {};
+    state.tasks.filter(t => t.repeat === "daily" || t.date === dateKey()).forEach(t => {
+      if (log[t.id] && log[t.id].status === "done") catCount[t.category] = (catCount[t.category] || 0) + 1;
+    });
+    const topCat = Object.keys(catCount).sort((a, b) => catCount[b] - catCount[a])[0];
+
+    // أسباب عدم الإنجاز
+    const reasons = {};
+    Object.values(log).forEach(v => { if (v.status === "missed" && v.reason) reasons[v.reason] = (reasons[v.reason] || 0) + 1; });
+    const reasonRows = Object.keys(reasons).sort((a, b) => reasons[b] - reasons[a]);
+
+    $("#reportBody").innerHTML = `
+      <div class="report-motiv tone-${tone}">
+        ${msg}
+        <small>${sub}</small>
+      </div>
+      <div class="report-grid">
+        <div class="stat-card card"><div class="stat-card__num">${st.pct}%</div><div class="stat-card__cap">نسبة الإنجاز</div></div>
+        <div class="stat-card card good"><div class="stat-card__num">${st.done}</div><div class="stat-card__cap">منجزة</div></div>
+        <div class="stat-card card bad"><div class="stat-card__num">${st.missed}</div><div class="stat-card__cap">غير منجزة</div></div>
+        <div class="stat-card card"><div class="stat-card__num">${st.pending}</div><div class="stat-card__cap">متبقية</div></div>
+      </div>
+      <div class="report-block card">
+        <h4>أكثر تصنيف أنجزته</h4>
+        ${topCat ? `<span class="top-cat">${CAT_ICONS[topCat]} ${topCat}</span>` : `<p class="muted">لا يوجد إنجاز بعد اليوم.</p>`}
+      </div>
+      <div class="report-block card">
+        <h4>أسباب عدم الإنجاز</h4>
+        ${reasonRows.length
+          ? reasonRows.map(r => `<div class="reason-row"><span>${esc(r)}</span><b>${reasons[r]}</b></div>`).join("")
+          : `<p class="muted">لا توجد أسباب — إمّا أنجزت أو لم يحن الوقت بعد.</p>`}
+      </div>`;
+  }
+
+  /* ---------------- الأسبوع ---------------- */
+  function renderWeek() {
+    const cards = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      const key = dateKey(d);
+      const st = dayStats(key);
+      const isToday = i === 0;
+      let sCls = "s-none", sLabel = "لا مهام";
+      if (st.total > 0) {
+        if (st.pct >= 90) { sCls = "s-high"; sLabel = "ممتاز"; }
+        else if (st.pct >= 60) { sCls = "s-mid"; sLabel = "جيد"; }
+        else { sCls = "s-low"; sLabel = "يحتاج تحسين"; }
+      }
+      cards.push(`
+        <div class="day-card card ${isToday ? "is-today" : ""}">
+          <div class="day-card__date">
+            <div class="day-card__day">${isToday ? "اليوم" : AR_DAYS[d.getDay()]}</div>
+            <div class="day-card__num">${d.getDate()}</div>
+          </div>
+          <div class="day-card__body">
+            <div class="day-card__top">
+              <span>${st.done}/${st.total} مهمة</span>
+              <span class="day-card__pct">${st.pct}%</span>
+            </div>
+            <div class="bar"><div class="bar__fill" style="width:${st.pct}%"></div></div>
+          </div>
+          <span class="day-status ${sCls}">${sLabel}</span>
+        </div>`);
+    }
+    $("#weekBody").innerHTML = cards.join("");
+  }
+
+  /* ---------------- اللوحة الجانبية (لابتوب) ---------------- */
+  function renderSidePanel() {
+    const st = dayStats();
+    const last3 = [];
+    for (let i = 0; i < 5; i++) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      const s = dayStats(dateKey(d));
+      last3.push(`
+        <div class="day-card__top" style="margin:8px 0 4px">
+          <span class="muted">${i === 0 ? "اليوم" : AR_DAYS[d.getDay()]}</span>
+          <span class="day-card__pct">${s.pct}%</span>
+        </div>
+        <div class="bar"><div class="bar__fill" style="width:${s.pct}%"></div></div>`);
+    }
+    $("#sidePanel").innerHTML = `
+      <div class="side-card card">
+        <h4>ميزان اليوم</h4>
+        <div style="display:flex;align-items:center;gap:14px">
+          <div style="font-size:38px;font-weight:800;color:var(--primary-700)">${st.pct}%</div>
+          <div>
+            <div style="font-weight:700">${st.done} من ${st.total} منجزة</div>
+            <div class="muted">سلسلة الالتزام: ${currentStreak()} 🔥</div>
+          </div>
+        </div>
+      </div>
+      <div class="side-card card">
+        <h4>آخر 5 أيام</h4>
+        ${last3.join("")}
+      </div>`;
+  }
+
+  /* ---------------- التنقل بين العروض ---------------- */
+  function switchView(name) {
+    $$(".view").forEach(v => v.classList.toggle("is-active", v.id === `view-${name}`));
+    $$(".bottomnav__item[data-nav]").forEach(b => b.classList.toggle("is-active", b.dataset.nav === name));
+    $$(".desktop-nav__item[data-nav]").forEach(b => b.classList.toggle("is-active", b.dataset.nav === name));
+    if (name === "report") renderReport();
+    if (name === "week") renderWeek();
+    if (name === "today") renderToday();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  /* ---------------- النوافذ ---------------- */
+  function openModal(sel) { const m = $(sel); m.hidden = false; document.body.style.overflow = "hidden"; }
+  function closeModal(sel) { const m = $(sel); m.hidden = true; document.body.style.overflow = ""; }
+
+  /* ---------------- التنبيه داخل التطبيق ---------------- */
+  let toastTimer = null;
+  function pulse(text) {
+    const t = $("#toast");
+    $("#toastText").textContent = text;
+    t.hidden = false;
+    requestAnimationFrame(() => t.classList.add("is-show"));
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      t.classList.remove("is-show");
+      setTimeout(() => { t.hidden = true; }, 450);
+    }, 2800);
+  }
+
+  /* ---------------- الوضع الليلي ---------------- */
+  const ICON_MOON = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+  const ICON_SUN = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>';
+
+  const mqlDark = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+  const systemDark = () => !!(mqlDark && mqlDark.matches);
+  const currentTheme = () => state.settings.theme || (systemDark() ? "dark" : "light");
+
+  function applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", theme === "dark" ? "#0b1120" : "#0f766e");
+    const btn = $("#btnTheme");
+    if (btn) btn.innerHTML = theme === "dark" ? ICON_SUN : ICON_MOON;
+    const sw = $("#toggleDark");
+    if (sw) sw.checked = theme === "dark";
+  }
+  function setTheme(theme) { state.settings.theme = theme; save(); applyTheme(theme); }
+  function toggleTheme() {
+    const next = currentTheme() === "dark" ? "light" : "dark";
+    setTheme(next);
+    pulse(next === "dark" ? "🌙 الوضع الليلي مُفعّل" : "☀️ الوضع النهاري مُفعّل");
+  }
+
+  /* ---------------- صوت التنبيه ---------------- */
+  let audioCtx = null;
+  function playChime() {
+    if (!state.settings.sound) return;
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const now = audioCtx.currentTime;
+      [880, 1174].forEach((freq, i) => {
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = "sine"; o.frequency.value = freq;
+        g.gain.setValueAtTime(0, now + i * 0.14);
+        g.gain.linearRampToValueAtTime(0.12, now + i * 0.14 + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.14 + 0.32);
+        o.connect(g); g.connect(audioCtx.destination);
+        o.start(now + i * 0.14); o.stop(now + i * 0.14 + 0.34);
+      });
+    } catch (e) { /* الصوت غير متاح */ }
+  }
+
+  /* ---------------- تنبيهات المهام حسب الوقت ---------------- */
+  function checkReminders() {
+    const now = new Date();
+    const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    const today = dateKey();
+    todayTasks().forEach(t => {
+      if (!t.time || t.time !== hhmm) return;
+      if (taskStatus(t.id) !== "pending") return;
+      const flag = `${today}_${t.id}`;
+      if (state.settings.notified[flag]) return;
+      state.settings.notified[flag] = true;
+      save();
+      fireReminder(t);
+    });
+  }
+
+  function fireReminder(t) {
+    const msg = `حان وقت المهمة: ${t.title}`;
+    pulse("🔔 " + msg);
+    playChime();
+    if ("Notification" in window && Notification.permission === "granted") {
+      try {
+        new Notification("عهد اليوم", { body: msg, tag: t.id, dir: "rtl", lang: "ar" });
+      } catch (e) { /* بعض المتصفحات تتطلب SW */ }
+    }
+  }
+
+  /* ---------------- إذن التنبيهات ---------------- */
+  function updateNotifButton() {
+    const btn = $("#btnNotif");
+    if (!("Notification" in window)) { btn.textContent = "غير مدعوم"; btn.disabled = true; btn.classList.replace("btn--primary", "btn--ghost"); return; }
+    const p = Notification.permission;
+    if (p === "granted") { btn.textContent = "مُفعّل ✅"; btn.classList.replace("btn--primary", "btn--ghost"); }
+    else if (p === "denied") { btn.textContent = "ممنوع من المتصفح"; btn.classList.replace("btn--primary", "btn--ghost"); }
+    else { btn.textContent = "تفعيل"; }
+  }
+  function requestNotif() {
+    if (!("Notification" in window)) { pulse("متصفحك لا يدعم الإشعارات"); return; }
+    Notification.requestPermission().then(p => {
+      state.settings.notifPermission = p; save();
+      updateNotifButton();
+      if (p === "granted") { pulse("تم تفعيل التنبيهات 🔔"); new Notification("عهد اليوم", { body: "سنذكّرك بمهامك في وقتها.", dir: "rtl" }); }
+      else pulse("لم يتم منح إذن التنبيهات");
+    });
+  }
+
+  /* ---------------- تثبيت التطبيق (PWA) ---------------- */
+  let deferredPrompt = null;
+  window.addEventListener("beforeinstallprompt", e => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (!state.settings.installDismissed) $("#installHint").hidden = false;
+  });
+  window.addEventListener("appinstalled", () => {
+    $("#installHint").hidden = true;
+    deferredPrompt = null;
+    pulse("تم تثبيت عهد اليوم على جهازك 🎉");
+  });
+
+  /* ---------------- ربط الأحداث ---------------- */
+  function bindEvents() {
+    // تفويض النقر لأزرار المهام
+    $("#taskList").addEventListener("click", e => {
+      const btn = e.target.closest("[data-act]"); if (!btn) return;
+      onTaskAction(btn.dataset.act, btn.dataset.id);
+    });
+
+    // فتح إضافة مهمة
+    document.addEventListener("click", e => {
+      if (e.target.closest("[data-open-add]")) openTaskModal(null);
+      if (e.target.closest("[data-close-modal]")) closeModal("#taskModal");
+      if (e.target.closest("[data-close-reason]")) { closeModal("#reasonModal"); pendingMissedId = null; }
+      if (e.target.closest("[data-toggle-theme]")) toggleTheme();
+      if (e.target.closest("[data-open-settings]")) { updateNotifButton(); openModal("#settingsModal"); }
+      if (e.target.closest("[data-close-settings]")) closeModal("#settingsModal");
+      const nav = e.target.closest("[data-nav]");
+      if (nav) {
+        if (nav.dataset.nav === "settings") { updateNotifButton(); openModal("#settingsModal"); }
+        else switchView(nav.dataset.nav);
+      }
+    });
+
+    // زر التثبيت
+    $("#btnInstall").addEventListener("click", async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === "accepted") $("#installHint").hidden = true;
+        deferredPrompt = null;
+      } else {
+        pulse("من قائمة المتصفح اختر: إضافة إلى الشاشة الرئيسية");
+      }
+    });
+    $("#btnInstallDismiss").addEventListener("click", () => {
+      $("#installHint").hidden = true;
+      state.settings.installDismissed = true; save();
+    });
+
+    // الإعدادات
+    $("#toggleDark").addEventListener("change", e => setTheme(e.target.checked ? "dark" : "light"));
+    if (mqlDark) mqlDark.addEventListener("change", e => { if (!state.settings.theme) applyTheme(e.matches ? "dark" : "light"); });
+
+    $("#btnNotif").addEventListener("click", requestNotif);
+    $("#toggleSound").checked = state.settings.sound;
+    $("#toggleSound").addEventListener("change", e => {
+      state.settings.sound = e.target.checked; save();
+      if (e.target.checked) playChime();
+    });
+    $("#btnResetDay").addEventListener("click", () => {
+      if (confirm("تصفير حالات مهام اليوم؟")) {
+        state.daily[dateKey()] = {};
+        Object.keys(state.settings.notified).forEach(k => { if (k.startsWith(dateKey())) delete state.settings.notified[k]; });
+        save(); renderToday(); closeModal("#settingsModal");
+        pulse("تم تصفير يومك — ابدأ من جديد");
+      }
+    });
+
+    // إغلاق النوافذ بمفتاح Escape
+    document.addEventListener("keydown", e => {
+      if (e.key === "Escape") { closeModal("#taskModal"); closeModal("#reasonModal"); closeModal("#settingsModal"); }
+    });
+  }
+
+  /* ---------------- التهيئة ---------------- */
+  function setDates() {
+    $("#topbarDate").textContent = fmtLongDate();
+    $("#heroDate").textContent = fmtLongDate();
+  }
+
+  function init() {
+    seedIfEmpty();
+    applyTheme(currentTheme());
+    setDates();
+    bindEvents();
+    updateNotifButton();
+    renderToday();
+
+    // تلميح التثبيت لأجهزة iOS (لا تدعم beforeinstallprompt)
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const standalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
+    if (isIOS && !standalone && !state.settings.installDismissed) {
+      $("#installHint").hidden = false;
+      $("#btnInstall").textContent = "كيفية التثبيت";
+    }
+
+    // مؤقّت التنبيهات (كل 20 ثانية)
+    checkReminders();
+    setInterval(checkReminders, 20000);
+
+    // تحديث التواريخ عند تغيّر اليوم
+    setInterval(() => { setDates(); }, 60000);
+
+    // إخفاء شاشة الترحيب
+    setTimeout(() => {
+      $("#splash").classList.add("is-hidden");
+      $("#app").hidden = false;
+    }, 900);
+
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+})();
+
+  </script>
+</body>
+</html>
