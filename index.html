@@ -4,12 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0" />
   <meta name="theme-color" content="#0f766e" />
-  <meta name="description" content="عهد اليوم — تطبيق عربي أنيق لإدارة مهامك اليومية بمتابعة وتحفيز وتقارير." />
+  <meta name="description" content="استعن بالله — تطبيق عربي أنيق لإدارة مهامك اليومية بمتابعة وتحفيز وتقارير." />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="عهد" />
+  <meta name="apple-mobile-web-app-title" content="استعن بالله" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <title>عهد اليوم</title>
+  <title>استعن بالله</title>
 
   <link id="manifestLink" rel="manifest" />
   <link id="touchIcon" rel="apple-touch-icon" />
@@ -138,7 +138,7 @@ input, textarea, select { font-family: inherit; font-size: 16px; }
 }
 .splash.is-hidden { opacity: 0; visibility: hidden; }
 .splash__mark {
-  font-size: 60px; font-weight: 800; letter-spacing: 2px;
+  font-size: 42px; font-weight: 800; letter-spacing: 0; text-align: center;
   animation: pop .7s var(--ease) both;
 }
 .splash__tagline { opacity: .9; font-weight: 500; animation: fadeUp .7s .15s var(--ease) both; }
@@ -607,8 +607,8 @@ textarea.input { resize: none; line-height: 1.5; }
       var SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 512 512\" width=\"512\" height=\"512\"> <defs> <linearGradient id=\"g\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\"> <stop offset=\"0\" stop-color=\"#115e59\"/> <stop offset=\"0.55\" stop-color=\"#0f766e\"/> <stop offset=\"1\" stop-color=\"#0b8f83\"/> </linearGradient> </defs> <rect width=\"512\" height=\"512\" rx=\"112\" fill=\"url(#g)\"/> <circle cx=\"256\" cy=\"256\" r=\"150\" fill=\"none\" stroke=\"#ffffff\" stroke-opacity=\"0.25\" stroke-width=\"20\"/> <path d=\"M156 262 l60 60 l150 -150\" fill=\"none\" stroke=\"#ffffff\" stroke-width=\"34\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/> <text x=\"256\" y=\"430\" font-family=\"Tajawal, Segoe UI, sans-serif\" font-size=\"90\" font-weight=\"800\" fill=\"#ffffff\" text-anchor=\"middle\">عهد</text> </svg>";
       var icon = "data:image/svg+xml," + encodeURIComponent(SVG);
       var manifest = {
-        name: "عهد اليوم",
-        short_name: "عهد",
+        name: "استعن بالله",
+        short_name: "استعن بالله",
         description: "تطبيق عربي لإدارة المهام اليومية بمتابعة وتحفيز وتقارير يومية وأسبوعية.",
         lang: "ar", dir: "rtl",
         start_url: ".", scope: ".",
@@ -642,7 +642,7 @@ textarea.input { resize: none; line-height: 1.5; }
 <body>
 <!-- ===== شاشة الترحيب / السبلاش ===== -->
   <div id="splash" class="splash">
-    <div class="splash__mark">عهد</div>
+    <div class="splash__mark">استعن بالله</div>
     <div class="splash__tagline">ابدأ يومك بوضوح</div>
   </div>
 
@@ -653,9 +653,9 @@ textarea.input { resize: none; line-height: 1.5; }
     <header class="topbar">
       <div class="topbar__inner">
         <div class="brand">
-          <div class="brand__logo" aria-hidden="true">ع</div>
+          <div class="brand__logo" aria-hidden="true">🤲</div>
           <div class="brand__text">
-            <h1 class="brand__title">عهد اليوم</h1>
+            <h1 class="brand__title">استعن بالله</h1>
             <span id="topbarDate" class="brand__date"></span>
           </div>
         </div>
@@ -725,7 +725,7 @@ textarea.input { resize: none; line-height: 1.5; }
           <div id="installHint" class="install-hint card" hidden>
             <span class="install-hint__icon">📲</span>
             <div class="install-hint__body">
-              <strong>ثبّت عهد اليوم على جوالك</strong>
+              <strong>ثبّت «استعن بالله» على جوالك</strong>
               <p>أضِفه للشاشة الرئيسية لاستخدام أسرع، وتبقى قريبًا من عهدك.</p>
             </div>
             <div class="install-hint__actions">
@@ -937,7 +937,7 @@ textarea.input { resize: none; line-height: 1.5; }
           <button id="btnResetDay" class="btn btn--sm btn--ghost">تصفير</button>
         </div>
 
-        <p class="app-credit">عهد اليوم — كل إنجاز صغير يصنع أثرًا كبيرًا.</p>
+        <p class="app-credit">استعن بالله — كل إنجاز صغير يصنع أثرًا كبيرًا.</p>
       </div>
     </div>
   </div>
@@ -1238,7 +1238,7 @@ textarea.input { resize: none; line-height: 1.5; }
     save();
     closeModal("#taskModal");
     renderToday();
-    pulse(editingId ? "تم تحديث المهمة" : "أُضيفت المهمة إلى عهد اليوم");
+    pulse(editingId ? "تم تحديث المهمة" : "أُضيفت المهمة بنجاح");
     editingId = null;
   });
 
@@ -1257,7 +1257,7 @@ textarea.input { resize: none; line-height: 1.5; }
   function renderReport() {
     const st = dayStats();
     let tone, msg, sub;
-    if (st.total === 0) { tone = "mid"; msg = "لم تبدأ عهد اليوم بعد"; sub = "أضف مهمة واحدة وابدأ بوضوح."; }
+    if (st.total === 0) { tone = "mid"; msg = "لم تبدأ يومك بعد"; sub = "أضف مهمة واحدة وابدأ بوضوح."; }
     else if (st.pct >= 90) { tone = "high"; msg = "يوم عظيم، التزامك اليوم كان مميزًا."; sub = "أتممت عهد اليوم، أحسنت."; }
     else if (st.pct >= 60) { tone = "mid"; msg = "يوم جيد، بقي القليل ليكون يومك أقوى."; sub = "كل إنجاز صغير يصنع أثرًا كبيرًا."; }
     else { tone = "low"; msg = "لا بأس، المهم أن تبدأ من جديد غدًا بخطة أخف وأوضح."; sub = "راجع يومك، وحسّن غدك."; }
@@ -1457,7 +1457,7 @@ textarea.input { resize: none; line-height: 1.5; }
     playChime();
     if ("Notification" in window && Notification.permission === "granted") {
       try {
-        new Notification("عهد اليوم", { body: msg, tag: t.id, dir: "rtl", lang: "ar" });
+        new Notification("استعن بالله", { body: msg, tag: t.id, dir: "rtl", lang: "ar" });
       } catch (e) { /* بعض المتصفحات تتطلب SW */ }
     }
   }
@@ -1476,7 +1476,7 @@ textarea.input { resize: none; line-height: 1.5; }
     Notification.requestPermission().then(p => {
       state.settings.notifPermission = p; save();
       updateNotifButton();
-      if (p === "granted") { pulse("تم تفعيل التنبيهات 🔔"); new Notification("عهد اليوم", { body: "سنذكّرك بمهامك في وقتها.", dir: "rtl" }); }
+      if (p === "granted") { pulse("تم تفعيل التنبيهات 🔔"); new Notification("استعن بالله", { body: "سنذكّرك بمهامك في وقتها.", dir: "rtl" }); }
       else pulse("لم يتم منح إذن التنبيهات");
     });
   }
@@ -1491,7 +1491,7 @@ textarea.input { resize: none; line-height: 1.5; }
   window.addEventListener("appinstalled", () => {
     $("#installHint").hidden = true;
     deferredPrompt = null;
-    pulse("تم تثبيت عهد اليوم على جهازك 🎉");
+    pulse("تم تثبيت «استعن بالله» على جهازك 🎉");
   });
 
   /* ---------------- ربط الأحداث ---------------- */

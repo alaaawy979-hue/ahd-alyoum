@@ -1,5 +1,5 @@
 /* عهد اليوم — Service Worker: يجعل التطبيق يعمل دون اتصال (أوفلاين) */
-const CACHE = "ahd-alyoum-v3";
+const CACHE = "ahd-alyoum-v4";
 const ASSETS = ["./", "./index.html", "./sw.js"];
 
 self.addEventListener("install", (e) => {
