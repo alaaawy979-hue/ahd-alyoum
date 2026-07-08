@@ -432,6 +432,33 @@ textarea.input { resize: none; line-height: 1.5; }
 .chip.is-active { background: var(--primary-tint); border-color: var(--primary); color: var(--primary-700); }
 .chip:active { transform: scale(.95); }
 
+/* شريط الأيام (٧ أيام) */
+.day-strip {
+  display: flex; gap: 8px; margin-top: 16px;
+  overflow-x: auto; padding: 2px 2px 6px; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.day-strip::-webkit-scrollbar { display: none; }
+.day-chip {
+  flex: 0 0 auto; min-width: 58px; padding: 9px 6px; border-radius: 15px; text-align: center;
+  background: var(--surface); border: 1.5px solid var(--line); transition: all .18s;
+}
+.day-chip:active { transform: scale(.94); }
+.day-chip__lbl { display: block; font-size: 11.5px; font-weight: 700; color: var(--muted); }
+.day-chip__num { display: block; font-size: 19px; font-weight: 800; color: var(--ink); margin-top: 2px; }
+.day-chip__dot { display: block; width: 5px; height: 5px; border-radius: 50%; margin: 4px auto 0; background: transparent; }
+.day-chip.has-tasks .day-chip__dot { background: var(--primary); }
+.day-chip.is-active { background: var(--primary); border-color: var(--primary); box-shadow: 0 6px 14px rgba(15,118,110,.28); }
+.day-chip.is-active .day-chip__lbl { color: rgba(255,255,255,.85); }
+.day-chip.is-active .day-chip__num { color: #fff; }
+.day-chip.is-active .day-chip__dot { background: #fff; }
+
+/* رقائق اختيار اليوم داخل النموذج */
+.chips--days { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; scrollbar-width: none; }
+.chips--days::-webkit-scrollbar { display: none; }
+.chips--days .chip { flex: 0 0 auto; min-width: 54px; text-align: center; padding: 8px 8px; }
+.field__hint { font-size: 12px; color: var(--muted); margin-top: 2px; }
+#fDayField.is-disabled { opacity: .5; pointer-events: none; }
+
 /* المقسّم (Segmented) */
 .seg { display: flex; background: var(--bg); border: 1.5px solid var(--line); border-radius: 13px; padding: 4px; gap: 4px; }
 .seg__btn { flex: 1; padding: 10px; border-radius: 10px; font-weight: 700; font-size: 14px; color: var(--muted); transition: all .2s; }
@@ -712,6 +739,9 @@ textarea.input { resize: none; line-height: 1.5; }
             </div>
           </div>
 
+          <!-- شريط الأيام (٧ أيام متتالية) -->
+          <div class="day-strip" id="dayStrip"></div>
+
           <!-- بطاقة احتفالية -->
           <div id="celebrate" class="celebrate card" hidden>
             <span class="celebrate__emoji">🎉</span>
@@ -735,7 +765,7 @@ textarea.input { resize: none; line-height: 1.5; }
           </div>
 
           <div class="section-head">
-            <h3 class="section-head__title">مهام اليوم</h3>
+            <h3 class="section-head__title" id="taskListTitle">مهام اليوم</h3>
             <span id="taskCount" class="section-head__badge">0</span>
           </div>
 
@@ -840,6 +870,12 @@ textarea.input { resize: none; line-height: 1.5; }
               <option value="low">منخفضة</option>
             </select>
           </label>
+        </div>
+
+        <div class="field" id="fDayField">
+          <span class="field__label">اليوم</span>
+          <div id="fDay" class="chips chips--days" role="radiogroup"></div>
+          <span class="field__hint" id="fDayHint">اختر اليوم (حتى ٧ أيام قادمة). المهمة «اليومية» تتكرّر كل يوم تلقائيًا.</span>
         </div>
 
         <div class="field">
@@ -1013,16 +1049,29 @@ textarea.input { resize: none; line-height: 1.5; }
   }
 
   /* ---------------- منطق المهام ---------------- */
-  function todayTasks() {
-    const today = dateKey();
+  // اليوم المعروض حاليًا في اللوحة (افتراضيًا: اليوم)
+  let selectedDate = dateKey();
+
+  const addDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d; };
+  function dayShortLabel(key) {
+    if (key === dateKey()) return "اليوم";
+    if (key === dateKey(addDays(1))) return "غدًا";
+    const d = new Date(key + "T00:00:00");
+    return AR_DAYS[d.getDay()];
+  }
+
+  function tasksForDate(key) {
     return state.tasks
-      .filter(t => t.repeat === "daily" || t.date === today)
+      .filter(t => t.repeat === "daily" || t.date === key)
       .sort((a, b) => {
         const order = { high: 0, mid: 1, low: 2 };
         if ((a.time || "99") !== (b.time || "99")) return (a.time || "99:99").localeCompare(b.time || "99:99");
         return order[a.priority] - order[b.priority];
       });
   }
+  // مهام اليوم الفعلي (للتنبيهات) ومهام اليوم المعروض (للعرض)
+  function todayTasks() { return tasksForDate(dateKey()); }
+  function viewTasks() { return tasksForDate(selectedDate); }
 
   function dayLog(key = dateKey()) {
     if (!state.daily[key]) state.daily[key] = {};
@@ -1068,8 +1117,36 @@ textarea.input { resize: none; line-height: 1.5; }
   /* ---------------- العرض: لوحة اليوم ---------------- */
   const RING_CIRC = 2 * Math.PI * 52; // ~326.7
 
+  function renderDayStrip() {
+    const strip = $("#dayStrip");
+    if (!strip) return;
+    let html = "";
+    for (let i = 0; i < 7; i++) {
+      const d = addDays(i);
+      const key = dateKey(d);
+      const st = dayStats(key);
+      const active = key === selectedDate ? "is-active" : "";
+      const hasTasks = st.total > 0 ? "has-tasks" : "";
+      html += `<button type="button" class="day-chip ${active} ${hasTasks}" data-date="${key}">
+        <span class="day-chip__lbl">${dayShortLabel(key)}</span>
+        <span class="day-chip__num">${d.getDate()}</span>
+        <span class="day-chip__dot"></span>
+      </button>`;
+    }
+    strip.innerHTML = html;
+  }
+
   function renderToday() {
-    const st = dayStats();
+    const st = dayStats(selectedDate);
+    const isToday = selectedDate === dateKey();
+
+    renderDayStrip();
+
+    // عنوان القسم وتاريخ البطاقة حسب اليوم المعروض
+    const d = new Date(selectedDate + "T00:00:00");
+    $("#heroDate").textContent = (isToday ? "اليوم" : dayShortLabel(selectedDate)) + " • " + fmtLongDate(d);
+    $("#taskListTitle").textContent = isToday ? "مهام اليوم" : "مهام يوم " + dayShortLabel(selectedDate);
+
     // الحلقة
     const ringFg = $("#ringFg");
     ringFg.style.strokeDasharray = RING_CIRC;
@@ -1078,12 +1155,12 @@ textarea.input { resize: none; line-height: 1.5; }
     $("#statDone").textContent = `${st.done}/${st.total}`;
     $("#statStreak").textContent = `${currentStreak()} 🔥`;
 
-    // بطاقة الاحتفال
-    $("#celebrate").hidden = !(st.total > 0 && st.done === st.total);
+    // بطاقة الاحتفال (لليوم الحالي فقط)
+    $("#celebrate").hidden = !(isToday && st.total > 0 && st.done === st.total);
 
     // القائمة
     const list = $("#taskList");
-    const tasks = todayTasks();
+    const tasks = viewTasks();
     $("#taskCount").textContent = tasks.length;
 
     if (!tasks.length) {
@@ -1103,7 +1180,7 @@ textarea.input { resize: none; line-height: 1.5; }
   }
 
   function taskCardHTML(t) {
-    const status = taskStatus(t.id);
+    const status = taskStatus(t.id, selectedDate);
     const statusMeta = {
       pending: { cls: "is-pending", label: "لم تبدأ" },
       done:    { cls: "is-done",    label: "تم الإنجاز" },
@@ -1145,7 +1222,7 @@ textarea.input { resize: none; line-height: 1.5; }
   let pendingMissedId = null;
 
   function setStatus(id, status, reason) {
-    const log = dayLog();
+    const log = dayLog(selectedDate);
     if (status === "pending") delete log[id];
     else log[id] = { status, reason: reason || null };
     save();
@@ -1154,7 +1231,7 @@ textarea.input { resize: none; line-height: 1.5; }
 
   function onTaskAction(act, id) {
     if (act === "done") {
-      const cur = taskStatus(id);
+      const cur = taskStatus(id, selectedDate);
       setStatus(id, cur === "done" ? "pending" : "done");
       if (cur !== "done") {
         pulse("أتممت هذه المهمة، أحسنت ✨");
@@ -1180,6 +1257,27 @@ textarea.input { resize: none; line-height: 1.5; }
   let editingId = null;
   let formCat = "عبادة";
   let formRep = "once";
+  let formDate = dateKey();
+
+  function renderFormDays() {
+    const box = $("#fDay");
+    if (!box) return;
+    let html = "";
+    for (let i = 0; i < 7; i++) {
+      const d = addDays(i);
+      const key = dateKey(d);
+      html += `<button type="button" class="chip ${key === formDate ? "is-active" : ""}" data-date="${key}">
+        ${dayShortLabel(key)} ${d.getDate()}</button>`;
+    }
+    box.innerHTML = html;
+  }
+  function updateDayFieldState() {
+    // المهمة اليومية تتكرّر كل يوم، فلا حاجة لاختيار يوم محدّد
+    $("#fDayField").classList.toggle("is-disabled", formRep === "daily");
+    $("#fDayHint").textContent = formRep === "daily"
+      ? "المهمة «اليومية» تتكرّر تلقائيًا كل يوم من الأيام السبعة."
+      : "اختر اليوم (حتى ٧ أيام قادمة).";
+  }
 
   function openTaskModal(id) {
     editingId = id || null;
@@ -1194,15 +1292,19 @@ textarea.input { resize: none; line-height: 1.5; }
       $("#fTime").value = t.time || "";
       $("#fPriority").value = t.priority;
       formCat = t.category; formRep = t.repeat;
+      formDate = t.date && t.date >= dateKey() ? t.date : dateKey();
     } else {
       $("#taskModalTitle").textContent = "مهمة جديدة";
       $("#fId").value = "";
       formCat = "عبادة"; formRep = "once";
+      formDate = selectedDate;   // يبدأ باليوم المعروض حاليًا
       $("#fPriority").value = "mid";
     }
-    // تحديث الرقائق والمقسّم
+    // تحديث الرقائق والمقسّم واختيار اليوم
     $$("#fCategory .chip").forEach(c => c.classList.toggle("is-active", c.dataset.cat === formCat));
     $$("#fRepeat .seg__btn").forEach(b => b.classList.toggle("is-active", b.dataset.rep === formRep));
+    renderFormDays();
+    updateDayFieldState();
     openModal("#taskModal");
     setTimeout(() => $("#fTitle").focus(), 350);
   }
@@ -1216,6 +1318,18 @@ textarea.input { resize: none; line-height: 1.5; }
     const b = e.target.closest(".seg__btn"); if (!b) return;
     formRep = b.dataset.rep;
     $$("#fRepeat .seg__btn").forEach(x => x.classList.toggle("is-active", x === b));
+    updateDayFieldState();
+  });
+  $("#fDay").addEventListener("click", e => {
+    const c = e.target.closest(".chip"); if (!c) return;
+    formDate = c.dataset.date;
+    $$("#fDay .chip").forEach(x => x.classList.toggle("is-active", x === c));
+  });
+  // التنقّل بين الأيام من شريط الأيام في اللوحة
+  $("#dayStrip").addEventListener("click", e => {
+    const c = e.target.closest(".day-chip"); if (!c) return;
+    selectedDate = c.dataset.date;
+    renderToday();
   });
 
   $("#taskForm").addEventListener("submit", e => {
@@ -1228,18 +1342,21 @@ textarea.input { resize: none; line-height: 1.5; }
       time: $("#fTime").value,
       category: formCat,
       repeat: formRep,
-      priority: $("#fPriority").value
+      priority: $("#fPriority").value,
+      date: formDate
     };
     if (editingId) {
       const t = state.tasks.find(x => x.id === editingId);
       Object.assign(t, data);
     } else {
-      state.tasks.push(Object.assign({ id: uid(), date: dateKey() }, data));
+      state.tasks.push(Object.assign({ id: uid() }, data));
+      selectedDate = formRep === "once" ? formDate : selectedDate; // انتقل لليوم المختار
     }
     save();
     closeModal("#taskModal");
     renderToday();
-    pulse(editingId ? "تم تحديث المهمة" : "أُضيفت المهمة بنجاح");
+    const dayNote = (formRep === "once" && formDate !== dateKey()) ? " ليوم " + dayShortLabel(formDate) : "";
+    pulse(editingId ? "تم تحديث المهمة" : "أُضيفت المهمة" + dayNote + " ✅");
     editingId = null;
   });
 
@@ -1498,21 +1615,25 @@ textarea.input { resize: none; line-height: 1.5; }
       const reg = await navigator.serviceWorker.ready;
       const prev = await reg.getNotifications({ includeTriggered: true });
       prev.forEach(n => { if (n.tag && n.tag.indexOf("sched_") === 0) n.close(); });
-      const today = dateKey();
       const nowMs = Date.now();
-      todayTasks().forEach(t => {
-        if (!t.time || taskStatus(t.id) !== "pending") return;
-        const parts = t.time.split(":");
-        const when = new Date(); when.setHours(+parts[0], +parts[1], 0, 0);
-        if (when.getTime() <= nowMs) return; // الماضي يُغطّيه التذكير التعويضي
-        reg.showNotification("استعن بالله 🤲", {
-          tag: "sched_" + today + "_" + t.id,
-          body: `حان وقت المهمة: ${t.title}`,
-          showTrigger: new window.TimestampTrigger(when.getTime()),
-          requireInteraction: true, renotify: true, dir: "rtl", lang: "ar",
-          vibrate: [220, 120, 220, 120, 320]
-        }).catch(() => {});
-      });
+      // جدولة تنبيهات الأيام السبعة القادمة (تعمل حتى لو أُغلق التطبيق على الأجهزة الداعمة)
+      for (let i = 0; i < 7; i++) {
+        const d = addDays(i);
+        const key = dateKey(d);
+        tasksForDate(key).forEach(t => {
+          if (!t.time || taskStatus(t.id, key) !== "pending") return;
+          const parts = t.time.split(":");
+          const when = new Date(d); when.setHours(+parts[0], +parts[1], 0, 0);
+          if (when.getTime() <= nowMs) return; // الماضي يُغطّيه التذكير التعويضي
+          reg.showNotification("استعن بالله 🤲", {
+            tag: "sched_" + key + "_" + t.id,
+            body: `حان وقت المهمة: ${t.title}`,
+            showTrigger: new window.TimestampTrigger(when.getTime()),
+            requireInteraction: true, renotify: true, dir: "rtl", lang: "ar",
+            vibrate: [220, 120, 220, 120, 320]
+          }).catch(() => {});
+        });
+      }
     } catch (e) { /* الجدولة غير مدعومة */ }
   }
 
