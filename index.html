@@ -927,7 +927,7 @@ textarea.input { resize: none; line-height: 1.5; }
           </label>
         </div>
 
-        <p class="hint-note">🔔 تعمل التنبيهات بشكل أفضل عند بقاء التطبيق مفتوحًا.</p>
+        <p class="hint-note">🔔 على الآيفون: فعّل التنبيهات من <b>داخل التطبيق المثبَّت</b> على الشاشة الرئيسية (لا من Safari). ولضمان الرنين في الأوقات الحسّاسة حتى والتطبيق مغلق، يُنصح بضبط منبّه في تطبيق «الساعة».</p>
 
         <div class="settings__row settings__row--danger">
           <div>
@@ -1095,6 +1095,7 @@ textarea.input { resize: none; line-height: 1.5; }
     }
 
     renderSidePanel();
+    if (typeof scheduleReminders === "function") scheduleReminders();
   }
 
   function esc(s) {
@@ -1415,33 +1416,60 @@ textarea.input { resize: none; line-height: 1.5; }
     pulse(next === "dark" ? "🌙 الوضع الليلي مُفعّل" : "☀️ الوضع النهاري مُفعّل");
   }
 
-  /* ---------------- صوت التنبيه ---------------- */
+  /* ---------------- صوت الجرس ---------------- */
   let audioCtx = null;
   function playChime() {
     if (!state.settings.sound) return;
     try {
       audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === "suspended") audioCtx.resume();
       const now = audioCtx.currentTime;
-      [880, 1174].forEach((freq, i) => {
-        const o = audioCtx.createOscillator();
-        const g = audioCtx.createGain();
-        o.type = "sine"; o.frequency.value = freq;
-        g.gain.setValueAtTime(0, now + i * 0.14);
-        g.gain.linearRampToValueAtTime(0.12, now + i * 0.14 + 0.02);
-        g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.14 + 0.32);
-        o.connect(g); g.connect(audioCtx.destination);
-        o.start(now + i * 0.14); o.stop(now + i * 0.14 + 0.34);
+      // ثلاث دقّات جرس واضحة
+      [0, 0.42, 0.84].forEach((t0) => {
+        [1318, 1976].forEach((freq, j) => {
+          const o = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          o.type = "sine"; o.frequency.value = freq;
+          const s = now + t0;
+          g.gain.setValueAtTime(0, s);
+          g.gain.linearRampToValueAtTime(j ? 0.10 : 0.22, s + 0.01);
+          g.gain.exponentialRampToValueAtTime(0.0008, s + 0.38);
+          o.connect(g); g.connect(audioCtx.destination);
+          o.start(s); o.stop(s + 0.4);
+        });
       });
     } catch (e) { /* الصوت غير متاح */ }
   }
 
-  /* ---------------- تنبيهات المهام حسب الوقت ---------------- */
+  /* ---------------- أدوات المنصّة والجدولة ---------------- */
+  const isIOSDevice = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isStandalone = () =>
+    window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+  const canSchedule =
+    ("serviceWorker" in navigator) &&
+    (typeof window.ServiceWorkerRegistration !== "undefined") &&
+    ("showTrigger" in window.ServiceWorkerRegistration.prototype) &&
+    ("TimestampTrigger" in window);
+
+  async function swShow(title, body, tag) {
+    // إشعار نظام حقيقي عبر Service Worker (يظهر بأيقونة التطبيق ويهتزّ الجوال)
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      await reg.showNotification(title, {
+        body, tag, renotify: true, requireInteraction: true,
+        dir: "rtl", lang: "ar", vibrate: [220, 120, 220, 120, 320]
+      });
+      return true;
+    } catch (e) { return false; }
+  }
+
+  /* ---------------- تنبيهات المهام حسب الوقت (مع تعويض عند إعادة الفتح) ---------------- */
   function checkReminders() {
     const now = new Date();
     const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
     const today = dateKey();
     todayTasks().forEach(t => {
-      if (!t.time || t.time !== hhmm) return;
+      if (!t.time || t.time > hhmm) return;          // حان وقتها أو مضى (تذكير تعويضي)
       if (taskStatus(t.id) !== "pending") return;
       const flag = `${today}_${t.id}`;
       if (state.settings.notified[flag]) return;
@@ -1455,30 +1483,76 @@ textarea.input { resize: none; line-height: 1.5; }
     const msg = `حان وقت المهمة: ${t.title}`;
     pulse("🔔 " + msg);
     playChime();
+    try { if (navigator.vibrate) navigator.vibrate([220, 120, 220]); } catch (e) {}
     if ("Notification" in window && Notification.permission === "granted") {
-      try {
-        new Notification("استعن بالله", { body: msg, tag: t.id, dir: "rtl", lang: "ar" });
-      } catch (e) { /* بعض المتصفحات تتطلب SW */ }
+      swShow("استعن بالله 🤲", msg, "ahd_" + t.id).then(ok => {
+        if (!ok) { try { new Notification("استعن بالله 🤲", { body: msg, tag: t.id, dir: "rtl", lang: "ar" }); } catch (e) {} }
+      });
     }
+  }
+
+  /* ---------------- جدولة مُسبقة تعمل حتى لو أُغلق التطبيق (أندرويد/الأجهزة الداعمة) ---------------- */
+  async function scheduleReminders() {
+    if (!canSchedule || !("Notification" in window) || Notification.permission !== "granted") return;
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const prev = await reg.getNotifications({ includeTriggered: true });
+      prev.forEach(n => { if (n.tag && n.tag.indexOf("sched_") === 0) n.close(); });
+      const today = dateKey();
+      const nowMs = Date.now();
+      todayTasks().forEach(t => {
+        if (!t.time || taskStatus(t.id) !== "pending") return;
+        const parts = t.time.split(":");
+        const when = new Date(); when.setHours(+parts[0], +parts[1], 0, 0);
+        if (when.getTime() <= nowMs) return; // الماضي يُغطّيه التذكير التعويضي
+        reg.showNotification("استعن بالله 🤲", {
+          tag: "sched_" + today + "_" + t.id,
+          body: `حان وقت المهمة: ${t.title}`,
+          showTrigger: new window.TimestampTrigger(when.getTime()),
+          requireInteraction: true, renotify: true, dir: "rtl", lang: "ar",
+          vibrate: [220, 120, 220, 120, 320]
+        }).catch(() => {});
+      });
+    } catch (e) { /* الجدولة غير مدعومة */ }
   }
 
   /* ---------------- إذن التنبيهات ---------------- */
   function updateNotifButton() {
     const btn = $("#btnNotif");
-    if (!("Notification" in window)) { btn.textContent = "غير مدعوم"; btn.disabled = true; btn.classList.replace("btn--primary", "btn--ghost"); return; }
+    btn.disabled = false;
+    if (!("Notification" in window)) {
+      // آيفون داخل Safari (غير مثبّت) لا يوفّر الإشعارات إلا بعد الإضافة للشاشة الرئيسية
+      btn.textContent = (isIOSDevice && !isStandalone()) ? "ثبّت التطبيق أولًا" : "غير مدعوم";
+      if (!(isIOSDevice && !isStandalone())) btn.disabled = true;
+      btn.classList.remove("btn--primary"); btn.classList.add("btn--ghost");
+      return;
+    }
     const p = Notification.permission;
-    if (p === "granted") { btn.textContent = "مُفعّل ✅"; btn.classList.replace("btn--primary", "btn--ghost"); }
-    else if (p === "denied") { btn.textContent = "ممنوع من المتصفح"; btn.classList.replace("btn--primary", "btn--ghost"); }
-    else { btn.textContent = "تفعيل"; }
+    if (p === "granted") { btn.textContent = "مُفعّل ✅"; btn.classList.remove("btn--primary"); btn.classList.add("btn--ghost"); }
+    else if (p === "denied") { btn.textContent = "ممنوع — فعّله من الإعدادات"; btn.classList.remove("btn--primary"); btn.classList.add("btn--ghost"); }
+    else { btn.textContent = "تفعيل الآن"; btn.classList.remove("btn--ghost"); btn.classList.add("btn--primary"); }
   }
+
   function requestNotif() {
-    if (!("Notification" in window)) { pulse("متصفحك لا يدعم الإشعارات"); return; }
+    if (!("Notification" in window)) {
+      pulse(isIOSDevice && !isStandalone()
+        ? "أضِف التطبيق للشاشة الرئيسية أولًا، ثم فعّل التنبيهات من داخله"
+        : "متصفحك لا يدعم الإشعارات");
+      return;
+    }
+    try { if (audioCtx && audioCtx.state === "suspended") audioCtx.resume(); } catch (e) {}
     Notification.requestPermission().then(p => {
       state.settings.notifPermission = p; save();
       updateNotifButton();
-      if (p === "granted") { pulse("تم تفعيل التنبيهات 🔔"); new Notification("استعن بالله", { body: "سنذكّرك بمهامك في وقتها.", dir: "rtl" }); }
-      else pulse("لم يتم منح إذن التنبيهات");
-    });
+      if (p === "granted") {
+        pulse("تم تفعيل التنبيهات 🔔");
+        playChime();
+        swShow("استعن بالله 🤲", "ممتاز! سنذكّرك بمهامك في وقتها بإذن الله.", "ahd_test");
+        scheduleReminders();
+      } else {
+        pulse("لم يتم منح إذن التنبيهات");
+      }
+    }).catch(() => pulse("تعذّر طلب الإذن — جرّبه من داخل التطبيق بعد تثبيته"));
   }
 
   /* ---------------- تثبيت التطبيق (PWA) ---------------- */
@@ -1580,9 +1654,14 @@ textarea.input { resize: none; line-height: 1.5; }
       $("#btnInstall").textContent = "كيفية التثبيت";
     }
 
-    // مؤقّت التنبيهات (كل 20 ثانية)
+    // مؤقّت التنبيهات (كل 20 ثانية) + جدولة مُسبقة
     checkReminders();
     setInterval(checkReminders, 20000);
+    scheduleReminders();
+    // عند العودة للتطبيق: تحقّق فوري + أعد الجدولة
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) { checkReminders(); scheduleReminders(); }
+    });
 
     // تحديث التواريخ عند تغيّر اليوم
     setInterval(() => { setDates(); }, 60000);
