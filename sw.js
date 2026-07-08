@@ -1,5 +1,5 @@
-/* عهد اليوم — Service Worker: يجعل التطبيق يعمل دون اتصال (أوفلاين) */
-const CACHE = "ahd-alyoum-v6";
+/* عهد اليوم — Service Worker: يعمل دون اتصال + يجلب أحدث نسخة عند وجود النت */
+const CACHE = "ahd-alyoum-v7";
 const ASSETS = ["./", "./index.html", "./sw.js"];
 
 self.addEventListener("install", (e) => {
@@ -30,15 +30,28 @@ self.addEventListener("notificationclick", (e) => {
 self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
-  // كاش أولًا؛ وعند التنقّل دون اتصال نرجع لصفحة التطبيق
-  e.respondWith(
-    caches.match(req).then((cached) =>
-      cached ||
+
+  const accept = req.headers.get("accept") || "";
+  const isPage = req.mode === "navigate" || accept.includes("text/html");
+
+  if (isPage) {
+    // الصفحة: الشبكة أولًا (أحدث نسخة عند وجود النت) ثم الكاش عند انقطاعه
+    e.respondWith(
       fetch(req).then((res) => {
         const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+        caches.open(CACHE).then((c) => { c.put("./index.html", copy); c.put("./", copy.clone()); }).catch(() => {});
         return res;
-      }).catch(() => caches.match("./index.html"))
-    )
+      }).catch(() => caches.match(req).then((r) => r || caches.match("./index.html")))
+    );
+    return;
+  }
+
+  // باقي الملفات: الشبكة أولًا أيضًا لضمان التحديث، والكاش احتياطًا دون اتصال
+  e.respondWith(
+    fetch(req).then((res) => {
+      const copy = res.clone();
+      caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+      return res;
+    }).catch(() => caches.match(req))
   );
 });

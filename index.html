@@ -657,11 +657,23 @@ textarea.input { resize: none; line-height: 1.5; }
     })();
   </script>
 
-  <!-- تسجيل Service Worker للعمل دون اتصال (أوفلاين) -->
+  <!-- تسجيل Service Worker: عمل دون اتصال + تحديث تلقائي لأحدث نسخة -->
   <script>
     if ("serviceWorker" in navigator) {
+      var __hadController = !!navigator.serviceWorker.controller;
+      var __refreshing = false;
+      navigator.serviceWorker.addEventListener("controllerchange", function () {
+        if (__refreshing || !__hadController) return; // لا نعيد التحميل عند أول تثبيت
+        __refreshing = true;
+        window.location.reload();
+      });
       window.addEventListener("load", function () {
-        navigator.serviceWorker.register("sw.js").catch(function () {});
+        navigator.serviceWorker.register("sw.js").then(function (reg) {
+          reg.update();
+          document.addEventListener("visibilitychange", function () {
+            if (!document.hidden) reg.update(); // تحقّق من التحديثات عند العودة للتطبيق
+          });
+        }).catch(function () {});
       });
     }
   </script>
