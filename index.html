@@ -1084,7 +1084,7 @@ textarea.input { resize: none; line-height: 1.5; }
   const SYNC_API = "https://api.restful-api.dev/objects";
   let syncTimer = null, pushTimer = null;
 
-  const hasSync = () => !!(state.settings.syncCode && state.settings.syncCode.indexOf("~") > 0);
+  const hasSync = () => !!(state.settings.syncCode && state.settings.syncCode.trim());
   function parseCode(code) {
     const i = (code || "").indexOf("~");
     return i > 0 ? { id: code.slice(0, i), secret: code.slice(i + 1) } : null;
@@ -1159,79 +1159,147 @@ textarea.input { resize: none; line-height: 1.5; }
     if (av && av.id === "view-week" && typeof renderWeek === "function") renderWeek();
   }
 
-  // ترميز/فك ترميز آمن لعربية UTF-8 داخل رابط
-  function encodeData(obj) {
-    const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
-    return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  /* ---- المزامنة التلقائية اللحظية (ntfy.sh) — بلا حساب ولا إعداد ---- */
+  const NTFY = "https://ntfy.sh/";
+  let sseConn = null, pushTimer2 = null;
+  const syncCode = () => (state.settings.syncCode || "").trim();
+  function ensureDevId() { if (!state.settings.devId) { state.settings.devId = Math.random().toString(36).slice(2, 10); save(); } return state.settings.devId; }
+
+  async function sha256hex(str) {
+    const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2, "0")).join("");
   }
-  function decodeData(str) {
-    let s = String(str || "").trim();
-    const m = s.match(/[?&]sync=([^&#\s]+)/);         // لو لُصق الرابط كاملًا
-    if (m) s = m[1];
-    try { s = decodeURIComponent(s); } catch (e) {}
-    s = s.replace(/-/g, "+").replace(/_/g, "/");
-    while (s.length % 4) s += "=";
-    return JSON.parse(decodeURIComponent(escape(atob(s))));
+  async function topicFor(code) { return "ahd" + (await sha256hex("t:" + code)).slice(0, 22); }
+
+  function b64urlBytes(bytes) { let s = ""; bytes.forEach(b => s += String.fromCharCode(b)); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }
+  function bytesB64url(str) { let s = str.replace(/-/g, "+").replace(/_/g, "/"); while (s.length % 4) s += "="; return Uint8Array.from(atob(s), c => c.charCodeAt(0)); }
+  async function gz(str) { if (!self.CompressionStream) return { f: 0, b: new TextEncoder().encode(str) }; const cs = new CompressionStream("gzip"); const w = cs.writable.getWriter(); w.write(new TextEncoder().encode(str)); w.close(); return { f: 1, b: new Uint8Array(await new Response(cs.readable).arrayBuffer()) }; }
+  async function gunz(bytes) { if (!self.DecompressionStream) return new TextDecoder().decode(bytes); const ds = new DecompressionStream("gzip"); const w = ds.writable.getWriter(); w.write(bytes); w.close(); return new TextDecoder().decode(await new Response(ds.readable).arrayBuffer()); }
+
+  async function pack(obj, pass) {
+    const { f, b } = await gz(JSON.stringify(obj));
+    const key = await deriveKey(pass);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, b));
+    const out = new Uint8Array(1 + 12 + ct.length); out[0] = f; out.set(iv, 1); out.set(ct, 13);
+    return b64urlBytes(out);
+  }
+  async function unpack(b64, pass) {
+    const raw = bytesB64url(b64);
+    const key = await deriveKey(pass);
+    const pt = new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: raw.slice(1, 13) }, key, raw.slice(13)));
+    return JSON.parse(raw[0] === 1 ? await gunz(pt) : new TextDecoder().decode(pt));
   }
 
-  function buildShareData() {
-    const cutoff = dateKey(addDays(-40));             // آخر ٤٠ يومًا لتصغير الحجم
-    const daily = {};
-    Object.keys(state.daily || {}).forEach(d => { if (d >= cutoff) daily[d] = state.daily[d]; });
-    return { _v: 1, tasks: state.tasks, daily, deletedIds: state.deletedIds || {}, dataUpdatedAt: state.dataUpdatedAt || Date.now() };
-  }
-  function shareLink() {
-    return location.origin + location.pathname + "?sync=" + encodeData(buildShareData());
-  }
+  const outgoing = () => ({ dev: ensureDevId(), tasks: state.tasks, daily: state.daily, deletedIds: state.deletedIds || {}, dataUpdatedAt: state.dataUpdatedAt || 0 });
 
-  function importData(str) {
-    let remote;
-    try { remote = decodeData(str); }
-    catch (e) { pulse("الرمز غير صحيح — تأكّد من نسخه كاملًا"); return false; }
-    if (!remote || !Array.isArray(remote.tasks)) { pulse("الرمز غير صالح"); return false; }
+  async function publishNow() {
+    if (!hasSync() || !navigator.onLine) return;
+    const code = syncCode();
+    try {
+      const body = await pack(outgoing(), code);
+      const topic = await topicFor(code);
+      await fetch(NTFY + topic, { method: "POST", body });
+    } catch (e) { /* صامت — يُعاد لاحقًا */ }
+  }
+  function schedulePush() { if (!hasSync()) return; clearTimeout(pushTimer2); pushTimer2 = setTimeout(publishNow, 900); }
+
+  async function handleIncoming(payload) {
+    const code = syncCode(); if (!code) return;
+    let remote; try { remote = await unpack(payload, code); } catch (e) { return; } // ليست رسالتنا/رمز مختلف
+    if (!remote || remote.dev === state.settings.devId) return;                     // تجاهُل صدى أنفسنا
     const local = dataSnapshot();
-    const merged = (local.dataUpdatedAt || 0) === 0 && remote.tasks.length
+    const fresh = (local.dataUpdatedAt || 0) === 0 && remote.tasks && remote.tasks.length;
+    const merged = fresh
       ? { tasks: remote.tasks, daily: remote.daily || {}, deletedIds: remote.deletedIds || {}, dataUpdatedAt: remote.dataUpdatedAt || Date.now() }
       : mergeData(local, remote);
-    applyData(merged);
-    state.dataUpdatedAt = Date.now(); save();
-    const added = merged.tasks.length - local.tasks.length;
-    pulse("تمت المزامنة ✓" + (added > 0 ? " — أُضيف " + added + " مهمة" : ""));
-    return true;
+    const sig = (x) => JSON.stringify({ t: x.tasks, d: x.daily, x: x.deletedIds });
+    if (sig(local) !== sig(merged)) { applyData(merged); pulse("تمّت المزامنة تلقائيًا ✓"); }
+    if (sig(remote) !== sig(merged)) publishNow();                                  // عندنا جديد ليس عندهم
+  }
+  function extractPayload(m) {
+    return new Promise((resolve) => {
+      if (m.message && m.message.length > 10) return resolve(m.message);
+      if (m.attachment && m.attachment.url) fetch(m.attachment.url).then(r => r.text()).then(resolve).catch(() => resolve(null));
+      else resolve(null);
+    });
   }
 
-  function schedulePush() { /* لا رفع تلقائي في المزامنة المباشرة */ }
-
-  function copyText(text, okMsg) {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(() => pulse(okMsg)).catch(() => fallback());
-    } else fallback();
-    function fallback() {
-      const t = document.createElement("textarea");
-      t.value = text; t.style.position = "fixed"; t.style.opacity = "0";
-      document.body.appendChild(t); t.focus(); t.select();
-      try { document.execCommand("copy"); pulse(okMsg); } catch (e) {}
-      document.body.removeChild(t);
-    }
+  async function pollLatest() {
+    if (!hasSync() || !navigator.onLine) return;
+    try {
+      const topic = await topicFor(syncCode());
+      const res = await fetch(NTFY + topic + "/json?poll=1&since=12h", { cache: "no-store" });
+      if (!res.ok) return;
+      const lines = (await res.text()).trim().split("\n").filter(Boolean);
+      for (let i = lines.length - 1; i >= 0; i--) {
+        let m; try { m = JSON.parse(lines[i]); } catch (e) { continue; }
+        if (m.event !== "message") continue;
+        const p = await extractPayload(m);
+        if (p) { await handleIncoming(p); break; }
+      }
+    } catch (e) {}
   }
+
+  function closeSSE() { if (sseConn) { try { sseConn.close(); } catch (e) {} sseConn = null; } }
+  function openSSE() {
+    closeSSE();
+    if (!hasSync()) return;
+    topicFor(syncCode()).then(topic => {
+      try {
+        sseConn = new EventSource(NTFY + topic + "/sse");
+        sseConn.onopen = () => setSyncStatus("متصلة — تحديث تلقائي ✓", "ok");
+        sseConn.onmessage = async (e) => {
+          try { const m = JSON.parse(e.data); if (m.event === "message") { const p = await extractPayload(m); if (p) await handleIncoming(p); } } catch (err) {}
+        };
+        sseConn.onerror = () => setSyncStatus("جارٍ إعادة الاتصال…", "");
+      } catch (e) { setSyncStatus("تعذّر الاتصال اللحظي", "err"); }
+    });
+  }
+
+  async function startSync() {
+    closeSSE();
+    if (!hasSync()) { setSyncStatus("غير مفعّلة", ""); return; }
+    ensureDevId();
+    setSyncStatus("جارٍ الاتصال…", "");
+    await pollLatest();   // اسحب الحالة المشتركة
+    await publishNow();   // انشر حالتنا
+    openSSE();            // استقبال لحظي
+  }
+  function enableSync(code) {
+    const c = (code || "").trim();
+    if (c.length < 4) { pulse("اجعل الرمز 4 أحرف فأكثر"); return; }
+    state.settings.syncCode = c; ensureDevId(); save();
+    renderSyncUI();
+    pulse("تم تفعيل المزامنة التلقائية ☁️");
+    startSync();
+  }
+  function disableSync() {
+    state.settings.syncCode = ""; save();
+    closeSSE(); renderSyncUI();
+    pulse("أُوقفت المزامنة");
+  }
+
   function renderSyncUI() {
     const panel = $("#syncPanel"); if (!panel) return;
-    panel.innerHTML =
-      '<button type="button" id="btnShare" class="btn btn--primary btn--block btn--sm">📤 مشاركة مهامي مع جهازي الآخر</button>' +
-      '<div id="shareBox" hidden style="margin-top:10px">' +
-        '<p class="field__hint">انسخ الرابط وأرسله لجهازك الآخر (واتساب/ملاحظات) ثم افتحه هناك:</p>' +
-        '<input id="shareLinkInput" class="input" readonly onclick="this.select()" style="font-size:12px;direction:ltr" />' +
-        '<button type="button" id="btnCopyLink" class="btn btn--ghost btn--sm btn--block" style="margin-top:8px">📋 نسخ الرابط</button>' +
-      '</div>' +
-      '<p class="sync-or">— أو استقبِل من جهازك الآخر —</p>' +
-      '<textarea id="importBox" class="input" rows="2" placeholder="الصق الرابط الذي نسخته من جهازك الآخر" style="resize:none;direction:ltr"></textarea>' +
-      '<button type="button" id="btnImport" class="btn btn--ghost btn--sm btn--block" style="margin-top:8px">📥 استيراد المهام</button>' +
-      '<p class="field__hint" id="syncStatus" style="margin-top:12px">🔒 مزامنة مباشرة بلا حساب ولا خادم — بياناتك تنتقل بين أجهزتك فقط.</p>';
+    if (hasSync()) {
+      panel.innerHTML =
+        '<p class="field__hint">مفعّلة على هذا الجهاز بالرمز:</p>' +
+        '<input id="syncCodeShow" class="input" readonly value="' + esc(state.settings.syncCode) + '" onclick="this.select()" style="direction:ltr" />' +
+        '<div class="sync-box__actions"><button type="button" id="btnSyncOff" class="btn btn--ghost btn--sm btn--block">إيقاف المزامنة</button></div>' +
+        '<p class="field__hint" id="syncStatus">جارٍ الاتصال…</p>';
+    } else {
+      panel.innerHTML =
+        '<input id="syncCodeInput" class="input" placeholder="اكتب رمزًا سريًّا (مثال: Ali-99)" autocapitalize="off" autocomplete="off" spellcheck="false" style="direction:ltr" />' +
+        '<button type="button" id="btnSyncOn" class="btn btn--primary btn--block btn--sm" style="margin-top:8px">☁️ تفعيل المزامنة التلقائية</button>' +
+        '<p class="field__hint" id="syncStatus">اكتب <b>نفس الرمز</b> على جوالك وحاسوبك، فتتزامن المهام تلقائيًا 🔒</p>';
+    }
   }
   function openSettings() {
     updateNotifButton();
     renderSyncUI();
     openModal("#settingsModal");
+    if (hasSync()) { startSync(); }
   }
 
   /* ---------------- بيانات تجريبية أولية ---------------- */
@@ -1947,20 +2015,13 @@ textarea.input { resize: none; line-height: 1.5; }
       }
     });
 
-    // المزامنة المباشرة (مشاركة/استيراد)
+    // المزامنة التلقائية (تفعيل/إيقاف)
     $("#syncPanel").addEventListener("click", (e) => {
-      if (e.target.closest("#btnShare")) {
-        const box = $("#shareBox"), inp = $("#shareLinkInput");
-        if (inp) inp.value = shareLink();
-        if (box) box.hidden = false;
-        if (inp) { inp.focus(); inp.select(); }
-        pulse("جاهز — انسخ الرابط وافتحه في جهازك الآخر");
-      } else if (e.target.closest("#btnCopyLink")) {
-        copyText(shareLink(), "نُسخ الرابط ✓");
-      } else if (e.target.closest("#btnImport")) {
-        const v = $("#importBox") ? $("#importBox").value : "";
-        if (!v.trim()) { pulse("الصق الرابط أولًا"); return; }
-        if (importData(v)) { $("#importBox").value = ""; }
+      if (e.target.closest("#btnSyncOn")) {
+        const inp = $("#syncCodeInput");
+        enableSync(inp ? inp.value : "");
+      } else if (e.target.closest("#btnSyncOff")) {
+        disableSync();
       }
     });
 
@@ -1996,16 +2057,17 @@ textarea.input { resize: none; line-height: 1.5; }
     checkReminders();
     setInterval(checkReminders, 20000);
     scheduleReminders();
-    // عند العودة للتطبيق: تحقّق فوري + أعد الجدولة
+    // عند العودة للتطبيق: تحقّق فوري + أعد الجدولة + أعِد الاتصال بالمزامنة
     document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) { checkReminders(); scheduleReminders(); }
+      if (!document.hidden) {
+        checkReminders(); scheduleReminders();
+        if (hasSync()) { pollLatest(); if (!sseConn) openSSE(); }
+      }
     });
+    window.addEventListener("online", () => { if (hasSync()) startSync(); });
 
-    // استيراد تلقائي عند فتح رابط مشاركة (?sync=...)
-    try {
-      const sp = new URLSearchParams(location.search).get("sync");
-      if (sp) { importData(sp); history.replaceState(null, "", location.pathname); }
-    } catch (e) {}
+    // بدء المزامنة التلقائية إن كانت مفعّلة
+    if (hasSync()) startSync();
 
     // تحديث التواريخ عند تغيّر اليوم
     setInterval(() => { setDates(); }, 60000);
