@@ -1,5 +1,5 @@
 /* عهد اليوم — Service Worker: يعمل دون اتصال + يجلب أحدث نسخة عند وجود النت */
-const CACHE = "ahd-alyoum-v8";
+const CACHE = "ahd-alyoum-v9";
 const ASSETS = ["./", "./index.html", "./sw.js"];
 
 self.addEventListener("install", (e) => {

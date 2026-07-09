@@ -466,6 +466,8 @@ textarea.input { resize: none; line-height: 1.5; }
 #syncStatus { margin-top: 10px; font-weight: 700; }
 #syncStatus[data-state="ok"] { color: var(--success); }
 #syncStatus[data-state="err"] { color: var(--danger); }
+.sync-or { text-align: center; color: var(--muted); font-size: 13px; margin: 10px 0; }
+#syncCodeShow { font-family: monospace; font-size: 13px; direction: ltr; text-align: left; }
 #fDayField.is-disabled { opacity: .5; pointer-events: none; }
 
 /* المقسّم (Segmented) */
@@ -988,13 +990,8 @@ textarea.input { resize: none; line-height: 1.5; }
 
         <div class="sync-box">
           <strong>☁️ المزامنة بين الأجهزة</strong>
-          <p class="muted">اكتب رمزًا سريًّا واستعمل <b>نفسه</b> على جوالك وحاسوبك، فتظهر مهامك في الجهازين. البيانات تُرفع مُشفّرة.</p>
-          <input id="syncCode" class="input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="رمز المزامنة (مثال: ahd-2026)" />
-          <div class="sync-box__actions">
-            <button type="button" id="btnSyncSave" class="btn btn--primary btn--sm">تفعيل / مزامنة الآن</button>
-            <button type="button" id="btnSyncOff" class="btn btn--ghost btn--sm">إيقاف</button>
-          </div>
-          <p class="field__hint" id="syncStatus">غير مفعّلة</p>
+          <p class="muted">شغّلها بضغطة — بلا حساب ولا بريد. أنشئ رمزًا على جهاز، وضَعه في الجهاز الآخر لتتشارك المهام. البيانات مشفّرة 🔒</p>
+          <div id="syncPanel"></div>
         </div>
 
         <div class="settings__row settings__row--danger">
@@ -1081,14 +1078,22 @@ textarea.input { resize: none; line-height: 1.5; }
   }
 
   /* ==========================================================================
-     المزامنة بين الأجهزة — مخزن سحابي + تشفير من طرف المستخدم
-     البيانات تُرفع مُشفّرة برمز المزامنة، فلا يقرأها إلا من يملك الرمز.
+     المزامنة بين الأجهزة — تعمل فورًا بلا حساب ولا بريد
+     رمز المزامنة = مُعرّف المخزن + مفتاح سري (لا يُرفع للخادم) → تشفير كامل.
      ========================================================================== */
-  const SYNC_BUCKET = "9XRaudX2JsgpXP3dBW8HJa"; // kvdb.io
-  const SYNC_URL = (kn) => `https://kvdb.io/${SYNC_BUCKET}/${kn}`;
+  const SYNC_API = "https://api.restful-api.dev/objects";
   let syncTimer = null, pushTimer = null;
 
-  const hasSync = () => !!(state.settings.syncCode && state.settings.syncCode.trim());
+  const hasSync = () => !!(state.settings.syncCode && state.settings.syncCode.indexOf("~") > 0);
+  function parseCode(code) {
+    const i = (code || "").indexOf("~");
+    return i > 0 ? { id: code.slice(0, i), secret: code.slice(i + 1) } : null;
+  }
+  function randomSecret() {
+    const b = crypto.getRandomValues(new Uint8Array(12));
+    let s = ""; b.forEach(x => s += String.fromCharCode(x));
+    return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+  }
   function setSyncStatus(txt, cls) {
     const el = $("#syncStatus");
     if (el) { el.textContent = txt; el.dataset.state = cls || ""; }
@@ -1154,81 +1159,79 @@ textarea.input { resize: none; line-height: 1.5; }
     if (av && av.id === "view-week" && typeof renderWeek === "function") renderWeek();
   }
 
-  async function pushNow(dataOverride) {
-    if (!hasSync() || !navigator.onLine) return;
-    const pass = state.settings.syncCode.trim();
-    try {
-      const kn = await storeKeyName(pass);
-      const body = await encryptPayload(dataOverride || dataSnapshot(), pass);
-      const res = await fetch(SYNC_URL(kn), { method: "PUT", body });
-      if (res.ok) { setSyncStatus("متصلة ✓", "ok"); return true; }
-      if (res.status === 403) setSyncStatus("بانتظار تفعيل الخدمة (راجع بريدك)", "err");
-      else setSyncStatus("تعذّر الرفع", "err");
-      return false;
-    } catch (e) { setSyncStatus("تعذّر الرفع", "err"); return false; }
+  // ترميز/فك ترميز آمن لعربية UTF-8 داخل رابط
+  function encodeData(obj) {
+    const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
+    return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+  function decodeData(str) {
+    let s = String(str || "").trim();
+    const m = s.match(/[?&]sync=([^&#\s]+)/);         // لو لُصق الرابط كاملًا
+    if (m) s = m[1];
+    try { s = decodeURIComponent(s); } catch (e) {}
+    s = s.replace(/-/g, "+").replace(/_/g, "/");
+    while (s.length % 4) s += "=";
+    return JSON.parse(decodeURIComponent(escape(atob(s))));
   }
 
-  async function pullNow(opts) {
-    if (!hasSync() || !navigator.onLine) return;
-    const pass = state.settings.syncCode.trim();
-    try {
-      const kn = await storeKeyName(pass);
-      const res = await fetch(SYNC_URL(kn), { cache: "no-store" });
-      if (res.status === 404) { await pushNow(); return; }
-      if (!res.ok) { setSyncStatus("تعذّر الاتصال", "err"); return; }
-      const b64 = (await res.text()).trim();
-      if (!b64) { await pushNow(); return; }
-      let remote;
-      try { remote = await decryptPayload(b64, pass); }
-      catch (e) { setSyncStatus("رمز المزامنة غير مطابق", "err"); return; }
-      const local = dataSnapshot();
-      // جهاز جديد لم يُعدّل بعد (مجرّد بيانات أولية) يتبنّى البيانات المشتركة كاملةً
-      const freshDevice = (local.dataUpdatedAt || 0) === 0 && remote.tasks && remote.tasks.length;
-      const merged = freshDevice
-        ? { tasks: remote.tasks, daily: remote.daily || {}, deletedIds: remote.deletedIds || {}, dataUpdatedAt: remote.dataUpdatedAt || Date.now() }
-        : mergeData(local, remote);
-      const sig = (x) => JSON.stringify({ t: x.tasks, d: x.daily, x: x.deletedIds });
-      if (sig(local) !== sig(merged)) {
-        applyData(merged);
-        if (opts && opts.announce) pulse("تمت مزامنة مهامك ☁️");
-      }
-      if (sig(remote) !== sig(merged) || (remote.dataUpdatedAt || 0) !== merged.dataUpdatedAt) await pushNow(merged);
-      else setSyncStatus("متصلة ✓", "ok");
-    } catch (e) { setSyncStatus("تعذّر الاتصال", "err"); }
+  function buildShareData() {
+    const cutoff = dateKey(addDays(-40));             // آخر ٤٠ يومًا لتصغير الحجم
+    const daily = {};
+    Object.keys(state.daily || {}).forEach(d => { if (d >= cutoff) daily[d] = state.daily[d]; });
+    return { _v: 1, tasks: state.tasks, daily, deletedIds: state.deletedIds || {}, dataUpdatedAt: state.dataUpdatedAt || Date.now() };
+  }
+  function shareLink() {
+    return location.origin + location.pathname + "?sync=" + encodeData(buildShareData());
   }
 
-  function schedulePush() {
-    if (!hasSync()) return;
-    clearTimeout(pushTimer);
-    pushTimer = setTimeout(() => pushNow(), 1200);
+  function importData(str) {
+    let remote;
+    try { remote = decodeData(str); }
+    catch (e) { pulse("الرمز غير صحيح — تأكّد من نسخه كاملًا"); return false; }
+    if (!remote || !Array.isArray(remote.tasks)) { pulse("الرمز غير صالح"); return false; }
+    const local = dataSnapshot();
+    const merged = (local.dataUpdatedAt || 0) === 0 && remote.tasks.length
+      ? { tasks: remote.tasks, daily: remote.daily || {}, deletedIds: remote.deletedIds || {}, dataUpdatedAt: remote.dataUpdatedAt || Date.now() }
+      : mergeData(local, remote);
+    applyData(merged);
+    state.dataUpdatedAt = Date.now(); save();
+    const added = merged.tasks.length - local.tasks.length;
+    pulse("تمت المزامنة ✓" + (added > 0 ? " — أُضيف " + added + " مهمة" : ""));
+    return true;
   }
-  function startSync(announce) {
-    clearInterval(syncTimer);
-    if (!hasSync()) { setSyncStatus("غير مفعّلة", ""); return; }
-    setSyncStatus("جارٍ الاتصال…", "");
-    pullNow({ announce: !!announce });
-    syncTimer = setInterval(() => pullNow(), 12000);
+
+  function schedulePush() { /* لا رفع تلقائي في المزامنة المباشرة */ }
+
+  function copyText(text, okMsg) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => pulse(okMsg)).catch(() => fallback());
+    } else fallback();
+    function fallback() {
+      const t = document.createElement("textarea");
+      t.value = text; t.style.position = "fixed"; t.style.opacity = "0";
+      document.body.appendChild(t); t.focus(); t.select();
+      try { document.execCommand("copy"); pulse(okMsg); } catch (e) {}
+      document.body.removeChild(t);
+    }
   }
-  function enableSync(code) {
-    const c = (code || "").trim();
-    if (!c) { pulse("اكتب رمز المزامنة أولًا"); return; }
-    if (c.length < 4) { pulse("اجعل الرمز 4 أحرف فأكثر"); return; }
-    state.settings.syncCode = c; save();
-    pulse("تم تفعيل المزامنة ☁️");
-    startSync(true);
-  }
-  function disableSync() {
-    state.settings.syncCode = ""; save();
-    clearInterval(syncTimer);
-    setSyncStatus("متوقفة", "");
-    pulse("أُوقفت المزامنة");
+  function renderSyncUI() {
+    const panel = $("#syncPanel"); if (!panel) return;
+    panel.innerHTML =
+      '<button type="button" id="btnShare" class="btn btn--primary btn--block btn--sm">📤 مشاركة مهامي مع جهازي الآخر</button>' +
+      '<div id="shareBox" hidden style="margin-top:10px">' +
+        '<p class="field__hint">انسخ الرابط وأرسله لجهازك الآخر (واتساب/ملاحظات) ثم افتحه هناك:</p>' +
+        '<input id="shareLinkInput" class="input" readonly onclick="this.select()" style="font-size:12px;direction:ltr" />' +
+        '<button type="button" id="btnCopyLink" class="btn btn--ghost btn--sm btn--block" style="margin-top:8px">📋 نسخ الرابط</button>' +
+      '</div>' +
+      '<p class="sync-or">— أو استقبِل من جهازك الآخر —</p>' +
+      '<textarea id="importBox" class="input" rows="2" placeholder="الصق الرابط الذي نسخته من جهازك الآخر" style="resize:none;direction:ltr"></textarea>' +
+      '<button type="button" id="btnImport" class="btn btn--ghost btn--sm btn--block" style="margin-top:8px">📥 استيراد المهام</button>' +
+      '<p class="field__hint" id="syncStatus" style="margin-top:12px">🔒 مزامنة مباشرة بلا حساب ولا خادم — بياناتك تنتقل بين أجهزتك فقط.</p>';
   }
   function openSettings() {
     updateNotifButton();
-    $("#syncCode").value = state.settings.syncCode || "";
-    setSyncStatus(hasSync() ? "متصلة ✓" : "غير مفعّلة", hasSync() ? "ok" : "");
+    renderSyncUI();
     openModal("#settingsModal");
-    if (hasSync()) pullNow();
   }
 
   /* ---------------- بيانات تجريبية أولية ---------------- */
@@ -1236,9 +1239,9 @@ textarea.input { resize: none; line-height: 1.5; }
     if (state.seeded || state.tasks.length) return;
     const today = dateKey();
     state.tasks = [
-      { id: uid(), title: "أذكار الصباح", desc: "قراءة أذكار الصباح بتدبّر", time: "06:30", category: "عبادة", repeat: "daily", priority: "high", date: today },
-      { id: uid(), title: "قراءة 10 صفحات", desc: "من الكتاب الحالي", time: "20:00", category: "دراسة", repeat: "daily", priority: "mid", date: today },
-      { id: uid(), title: "المشي 30 دقيقة", desc: "", time: "17:00", category: "رياضة", repeat: "daily", priority: "low", date: today }
+      { id: "seed-athkar", title: "أذكار الصباح", desc: "قراءة أذكار الصباح بتدبّر", time: "06:30", category: "عبادة", repeat: "daily", priority: "high", date: today },
+      { id: "seed-read", title: "قراءة 10 صفحات", desc: "من الكتاب الحالي", time: "20:00", category: "دراسة", repeat: "daily", priority: "mid", date: today },
+      { id: "seed-walk", title: "المشي 30 دقيقة", desc: "", time: "17:00", category: "رياضة", repeat: "daily", priority: "low", date: today }
     ];
     state.seeded = true;
     save();
@@ -1944,10 +1947,22 @@ textarea.input { resize: none; line-height: 1.5; }
       }
     });
 
-    // المزامنة بين الأجهزة
-    $("#btnSyncSave").addEventListener("click", () => enableSync($("#syncCode").value));
-    $("#btnSyncOff").addEventListener("click", () => { $("#syncCode").value = ""; disableSync(); });
-    window.addEventListener("online", () => { if (hasSync()) pullNow(); });
+    // المزامنة المباشرة (مشاركة/استيراد)
+    $("#syncPanel").addEventListener("click", (e) => {
+      if (e.target.closest("#btnShare")) {
+        const box = $("#shareBox"), inp = $("#shareLinkInput");
+        if (inp) inp.value = shareLink();
+        if (box) box.hidden = false;
+        if (inp) { inp.focus(); inp.select(); }
+        pulse("جاهز — انسخ الرابط وافتحه في جهازك الآخر");
+      } else if (e.target.closest("#btnCopyLink")) {
+        copyText(shareLink(), "نُسخ الرابط ✓");
+      } else if (e.target.closest("#btnImport")) {
+        const v = $("#importBox") ? $("#importBox").value : "";
+        if (!v.trim()) { pulse("الصق الرابط أولًا"); return; }
+        if (importData(v)) { $("#importBox").value = ""; }
+      }
+    });
 
     // إغلاق النوافذ بمفتاح Escape
     document.addEventListener("keydown", e => {
@@ -1981,13 +1996,16 @@ textarea.input { resize: none; line-height: 1.5; }
     checkReminders();
     setInterval(checkReminders, 20000);
     scheduleReminders();
-    // عند العودة للتطبيق: تحقّق فوري + أعد الجدولة + اسحب المزامنة
+    // عند العودة للتطبيق: تحقّق فوري + أعد الجدولة
     document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) { checkReminders(); scheduleReminders(); if (hasSync()) pullNow(); }
+      if (!document.hidden) { checkReminders(); scheduleReminders(); }
     });
 
-    // بدء المزامنة إن كانت مفعّلة
-    startSync();
+    // استيراد تلقائي عند فتح رابط مشاركة (?sync=...)
+    try {
+      const sp = new URLSearchParams(location.search).get("sync");
+      if (sp) { importData(sp); history.replaceState(null, "", location.pathname); }
+    } catch (e) {}
 
     // تحديث التواريخ عند تغيّر اليوم
     setInterval(() => { setDates(); }, 60000);
