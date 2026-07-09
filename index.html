@@ -341,6 +341,8 @@ input, textarea, select { font-family: inherit; font-size: 16px; }
 .btn--danger { background: #fff; color: var(--danger); border: 1.5px solid var(--danger-soft); }
 .btn--danger:hover { background: var(--danger-soft); }
 .btn--ghost { background: var(--bg); color: var(--ink-2); border: 1px solid var(--line); }
+.btn--undo { flex: 1; background: var(--bg); color: var(--ink-2); border: 1.5px solid var(--line); }
+.btn--undo:hover { border-color: var(--primary); color: var(--primary-700); }
 .btn--block { width: 100%; }
 .btn--lg { min-height: 54px; font-size: 16px; border-radius: 15px; }
 .btn--sm { min-height: 40px; padding: 8px 14px; font-size: 14px; border-radius: 11px; }
@@ -374,6 +376,7 @@ input, textarea, select { font-family: inherit; font-size: 16px; }
   border-top: 1px solid var(--line);
   display: flex; align-items: stretch;
   max-width: 1120px; margin: 0 auto;
+  overflow: visible;
 }
 .bottomnav__item {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
@@ -384,7 +387,19 @@ input, textarea, select { font-family: inherit; font-size: 16px; }
 .bottomnav__item.is-active { color: var(--primary); }
 .bottomnav__item.is-active svg { transform: translateY(-2px) scale(1.08); }
 .bottomnav__item:active svg { transform: scale(.85); }
-.bottomnav__spacer { width: 64px; flex-shrink: 0; }
+
+/* زر الإضافة المركزي المرتفع في الشريط السفلي */
+.bottomnav__add {
+  flex: 0 0 auto; align-self: center;
+  width: 58px; height: 58px; border-radius: 50%;
+  margin: 0 8px; transform: translateY(-14px);
+  display: grid; place-items: center; color: #fff;
+  background: linear-gradient(150deg, var(--primary), var(--primary-700));
+  box-shadow: 0 8px 20px rgba(15, 118, 110, .45);
+  border: 4px solid var(--bg);
+  transition: transform .15s var(--ease);
+}
+.bottomnav__add:active { transform: translateY(-14px) scale(.9); }
 
 /* ============ النوافذ (Bottom Sheets) ============ */
 .modal { position: fixed; inset: 0; z-index: 100; display: flex; align-items: flex-end; justify-content: center; }
@@ -828,11 +843,6 @@ textarea.input { resize: none; line-height: 1.5; }
 
     </main>
 
-    <!-- زر الإضافة العائم -->
-    <button id="fab" class="fab" data-open-add aria-label="إضافة مهمة">
-      <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-    </button>
-
     <!-- الشريط السفلي -->
     <nav class="bottomnav" role="navigation">
       <button class="bottomnav__item is-active" data-nav="today">
@@ -843,7 +853,9 @@ textarea.input { resize: none; line-height: 1.5; }
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg>
         <span>التقرير</span>
       </button>
-      <div class="bottomnav__spacer"></div>
+      <button class="bottomnav__add" data-open-add aria-label="إضافة مهمة">
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
       <button class="bottomnav__item" data-nav="week">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
         <span>الأسبوع</span>
@@ -1471,8 +1483,10 @@ textarea.input { resize: none; line-height: 1.5; }
           <span class="tag tag--status ${statusMeta.cls}">${statusMeta.label}</span>
         </div>
         <div class="task__actions">
-          <button class="btn ${status === "done" ? "btn--ghost" : "btn--success"} btn--sm" data-act="done" data-id="${t.id}">✅ أنجزت</button>
-          <button class="btn btn--danger btn--sm" data-act="missed" data-id="${t.id}">❌ لم أنجز</button>
+          ${status === "pending"
+            ? `<button class="btn btn--success btn--sm" data-act="done" data-id="${t.id}">✅ أنجزت</button>
+               <button class="btn btn--danger btn--sm" data-act="missed" data-id="${t.id}">❌ لم أنجز</button>`
+            : `<button class="btn btn--undo btn--sm" data-act="undo" data-id="${t.id}">↩️ تراجع — لم يبدأ</button>`}
           <div class="task__mini">
             <button class="act act--edit" data-act="edit" data-id="${t.id}" aria-label="تعديل">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
@@ -1507,6 +1521,9 @@ textarea.input { resize: none; line-height: 1.5; }
     } else if (act === "missed") {
       pendingMissedId = id;
       openModal("#reasonModal");
+    } else if (act === "undo") {
+      setStatus(id, "pending");
+      pulse("رجعت المهمة إلى: لم يبدأ ↩️");
     } else if (act === "edit") {
       openTaskModal(id);
     } else if (act === "del") {
