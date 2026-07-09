@@ -1152,12 +1152,20 @@ textarea.input { resize: none; line-height: 1.5; }
     (aNewer ? b.tasks : a.tasks).forEach(t => { map[t.id] = t; });
     (aNewer ? a.tasks : b.tasks).forEach(t => { map[t.id] = t; });
     const tasks = Object.values(map).filter(t => !del[t.id]);
+    // دمج الحالات اليومية حسب الطابع الزمني لكل حالة (آخر إجراء يفوز — ومنه التراجع)
     const daily = {};
-    const older = aNewer ? b : a, newer = aNewer ? a : b;
-    [older.daily || {}, newer.daily || {}].forEach(src =>
-      Object.keys(src).forEach(date => { daily[date] = Object.assign({}, daily[date], src[date]); }));
-    Object.keys(daily).forEach(date =>
-      Object.keys(daily[date]).forEach(tid => { if (del[tid]) delete daily[date][tid]; }));
+    const dA = a.daily || {}, dB = b.daily || {};
+    const dates = new Set([...Object.keys(dA), ...Object.keys(dB)]);
+    dates.forEach(date => {
+      const eA = dA[date] || {}, eB = dB[date] || {};
+      const out = {};
+      new Set([...Object.keys(eA), ...Object.keys(eB)]).forEach(tid => {
+        if (del[tid]) return;
+        const x = eA[tid], y = eB[tid];
+        out[tid] = (x && y) ? ((y.ts || 0) >= (x.ts || 0) ? y : x) : (x || y);
+      });
+      if (Object.keys(out).length) daily[date] = out;
+    });
     return { tasks, daily, deletedIds: del, dataUpdatedAt: Math.max(a.dataUpdatedAt || 0, b.dataUpdatedAt || 0) };
   }
 
@@ -1504,8 +1512,8 @@ textarea.input { resize: none; line-height: 1.5; }
 
   function setStatus(id, status, reason) {
     const log = dayLog(selectedDate);
-    if (status === "pending") delete log[id];
-    else log[id] = { status, reason: reason || null };
+    // نخزّن كل الحالات (حتى "لم يبدأ") مع طابع زمني لتنتقل عبر المزامنة بصورة صحيحة
+    log[id] = { status, reason: reason || null, ts: Date.now() };
     touchData();
     renderToday();
   }
