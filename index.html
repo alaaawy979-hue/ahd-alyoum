@@ -582,6 +582,22 @@ textarea.input { resize: none; line-height: 1.5; }
 .toast.is-show { transform: translateX(-50%) translateY(0); }
 .toast__icon { font-size: 20px; }
 
+/* شاشة الجرس/المنبّه */
+.alarm { align-items: center; z-index: 300; }
+.alarm .alarm__card {
+  position: relative; z-index: 1;
+  background: var(--surface); border-radius: 26px; padding: 34px 24px calc(28px + var(--safe-bottom));
+  text-align: center; width: 90%; max-width: 350px; box-shadow: var(--shadow-lg);
+  border: 2px solid var(--primary-soft);
+  animation: alarmPop .35s var(--ease);
+}
+.alarm::before { content: ""; position: absolute; inset: 0; background: rgba(15, 23, 42, .65); backdrop-filter: blur(2px); }
+.alarm__bell { font-size: 66px; display: inline-block; transform-origin: 50% 8%; animation: ring .9s ease-in-out infinite; }
+.alarm__label { color: var(--muted); font-weight: 700; font-size: 15px; margin-top: 6px; }
+.alarm__task { font-size: 24px; font-weight: 800; color: var(--primary-700); margin: 8px 0 24px; line-height: 1.3; }
+@keyframes ring { 0%, 100% { transform: rotate(0) } 15% { transform: rotate(20deg) } 30% { transform: rotate(-16deg) } 45% { transform: rotate(12deg) } 60% { transform: rotate(-8deg) } 75% { transform: rotate(4deg) } }
+@keyframes alarmPop { from { transform: scale(.8); opacity: 0 } to { transform: none; opacity: 1 } }
+
 /* عناصر خاصة باللابتوب — مخفية افتراضيًا (قبل استعلامات الوسائط لضمان الأسبقية) */
 .side-panel { display: none; }
 .desktop-nav { display: none; }
@@ -998,7 +1014,9 @@ textarea.input { resize: none; line-height: 1.5; }
           </label>
         </div>
 
-        <p class="hint-note">🔔 على الآيفون: فعّل التنبيهات من <b>داخل التطبيق المثبَّت</b> على الشاشة الرئيسية (لا من Safari). ولضمان الرنين في الأوقات الحسّاسة حتى والتطبيق مغلق، يُنصح بضبط منبّه في تطبيق «الساعة».</p>
+        <button id="btnTestBell" type="button" class="btn btn--ghost btn--sm btn--block" style="margin:4px 0 10px">🔔 جرّب الجرس الآن</button>
+
+        <p class="hint-note">⏰ الجرس يرنّ بقوة (صوت متكرّر + اهتزاز + شاشة تنبيه) <b>ما دام التطبيق مفتوحًا</b>، ويعمل بلا إنترنت. وأي مهمة يفوت وقتها يرنّ لها فور فتحك التطبيق.<br>⚠️ على الآيفون لا يمكن لأي تطبيق ويب أن يرنّ والتطبيق <b>مغلق تمامًا</b> (قيد من نظام آبل) — للمواعيد المهمة جدًّا اضبط منبّهًا في تطبيق «الساعة» احتياطًا.</p>
 
         <div class="sync-box">
           <strong>☁️ المزامنة بين الأجهزة</strong>
@@ -1016,6 +1034,17 @@ textarea.input { resize: none; line-height: 1.5; }
 
         <p class="app-credit">استعن بالله — كل إنجاز صغير يصنع أثرًا كبيرًا.</p>
       </div>
+    </div>
+  </div>
+
+  <!-- ===== شاشة الجرس/المنبّه ===== -->
+  <div id="alarmModal" class="modal alarm" hidden>
+    <div class="alarm__card" role="dialog" aria-modal="true">
+      <div class="alarm__bell" aria-hidden="true">⏰</div>
+      <div class="alarm__label">حان وقت المهمة</div>
+      <div id="alarmTaskName" class="alarm__task"></div>
+      <button id="alarmDone" class="btn btn--success btn--lg btn--block">✅ أنجزتها الآن</button>
+      <button id="alarmStop" class="btn btn--ghost btn--lg btn--block" style="margin-top:10px">🔕 إيقاف الجرس</button>
     </div>
   </div>
 
@@ -1851,6 +1880,45 @@ textarea.input { resize: none; line-height: 1.5; }
     } catch (e) { /* الصوت غير متاح */ }
   }
 
+  // فتح قفل الصوت عند أول تفاعل (مطلوب على iOS ليعمل الجرس لاحقًا)
+  function unlockAudio() {
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === "suspended") audioCtx.resume();
+    } catch (e) {}
+  }
+  ["pointerdown", "touchstart", "keydown"].forEach(ev =>
+    document.addEventListener(ev, unlockAudio, { passive: true }));
+
+  /* ---------------- شاشة الجرس/المنبّه (تعمل بلا إنترنت) ---------------- */
+  let alarmTimer = null, alarmVibTimer = null, alarmAutoStop = null, alarmTaskId = null;
+  function startAlarm(t) {
+    alarmTaskId = t.id;
+    const nameEl = $("#alarmTaskName"); if (nameEl) nameEl.textContent = t.title;
+    const m = $("#alarmModal"); if (m) m.hidden = false;
+    document.body.style.overflow = "hidden";
+    unlockAudio();
+    playChime();
+    clearInterval(alarmTimer);
+    alarmTimer = setInterval(playChime, 1400);        // جرس متكرّر حتى الإيقاف
+    try {
+      if (navigator.vibrate) {
+        navigator.vibrate([350, 150, 350]);
+        clearInterval(alarmVibTimer);
+        alarmVibTimer = setInterval(() => { try { navigator.vibrate([350, 150, 350]); } catch (e) {} }, 1700);
+      }
+    } catch (e) {}
+    clearTimeout(alarmAutoStop);
+    alarmAutoStop = setTimeout(stopAlarm, 60000);      // يتوقف تلقائيًا بعد دقيقة
+  }
+  function stopAlarm() {
+    clearInterval(alarmTimer); clearInterval(alarmVibTimer); clearTimeout(alarmAutoStop);
+    alarmTimer = alarmVibTimer = null;
+    try { if (navigator.vibrate) navigator.vibrate(0); } catch (e) {}
+    const m = $("#alarmModal"); if (m) m.hidden = true;
+    document.body.style.overflow = "";
+  }
+
   /* ---------------- أدوات المنصّة والجدولة ---------------- */
   const isIOSDevice = /iphone|ipad|ipod/i.test(navigator.userAgent);
   const isStandalone = () =>
@@ -1892,8 +1960,7 @@ textarea.input { resize: none; line-height: 1.5; }
   function fireReminder(t) {
     const msg = `حان وقت المهمة: ${t.title}`;
     pulse("🔔 " + msg);
-    playChime();
-    try { if (navigator.vibrate) navigator.vibrate([220, 120, 220]); } catch (e) {}
+    startAlarm(t);                                     // شاشة جرس متكرّر + اهتزاز (بلا إنترنت)
     if ("Notification" in window && Notification.permission === "granted") {
       swShow("استعن بالله 🤲", msg, "ahd_" + t.id).then(ok => {
         if (!ok) { try { new Notification("استعن بالله 🤲", { body: msg, tag: t.id, dir: "rtl", lang: "ar" }); } catch (e) {} }
@@ -2029,8 +2096,21 @@ textarea.input { resize: none; line-height: 1.5; }
     $("#toggleSound").checked = state.settings.sound;
     $("#toggleSound").addEventListener("change", e => {
       state.settings.sound = e.target.checked; save();
-      if (e.target.checked) playChime();
+      if (e.target.checked) { unlockAudio(); playChime(); }
     });
+    // أزرار شاشة الجرس
+    $("#alarmStop").addEventListener("click", stopAlarm);
+    $("#alarmDone").addEventListener("click", () => {
+      if (alarmTaskId) {
+        dayLog(dateKey())[alarmTaskId] = { status: "done", reason: null, ts: Date.now() };
+        touchData(); renderToday();
+      }
+      stopAlarm();
+      pulse("أتممت المهمة، أحسنت ✨");
+    });
+    // زر تجربة الجرس
+    const btnTest = $("#btnTestBell");
+    if (btnTest) btnTest.addEventListener("click", () => { unlockAudio(); startAlarm({ id: "__test__", title: "تجربة الجرس" }); });
     $("#btnResetDay").addEventListener("click", () => {
       if (confirm("تصفير حالات مهام اليوم؟")) {
         state.daily[dateKey()] = {};
@@ -2078,9 +2158,9 @@ textarea.input { resize: none; line-height: 1.5; }
       $("#btnInstall").textContent = "كيفية التثبيت";
     }
 
-    // مؤقّت التنبيهات (كل 20 ثانية) + جدولة مُسبقة
+    // مؤقّت التنبيهات (كل 10 ثوانٍ لدقّة أعلى) + جدولة مُسبقة
     checkReminders();
-    setInterval(checkReminders, 20000);
+    setInterval(checkReminders, 10000);
     scheduleReminders();
     // عند العودة للتطبيق: تحقّق فوري + أعد الجدولة + أعِد الاتصال بالمزامنة
     document.addEventListener("visibilitychange", () => {
