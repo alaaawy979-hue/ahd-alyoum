@@ -515,6 +515,12 @@ textarea.input { resize: none; line-height: 1.5; }
 }
 .app-credit { text-align: center; color: var(--muted); font-size: 12.5px; margin-top: 14px; }
 
+/* صندوق تذكيرات التقويم */
+.cal-box { padding: 16px; margin: 10px 0; border-radius: 16px; background: var(--primary-tint); border: 1.5px solid var(--primary-soft); }
+.cal-box > strong { font-size: 15px; color: var(--primary-700); }
+.cal-box .muted { margin: 6px 0 12px; }
+.cal-box .field__hint { margin-top: 8px; }
+
 /* مفتاح التبديل */
 .switch { position: relative; width: 50px; height: 30px; flex-shrink: 0; }
 .switch input { opacity: 0; width: 0; height: 0; }
@@ -1016,7 +1022,14 @@ textarea.input { resize: none; line-height: 1.5; }
 
         <button id="btnTestBell" type="button" class="btn btn--ghost btn--sm btn--block" style="margin:4px 0 10px">🔔 جرّب الجرس الآن</button>
 
-        <p class="hint-note">⏰ الجرس يرنّ بقوة (صوت متكرّر + اهتزاز + شاشة تنبيه) <b>ما دام التطبيق مفتوحًا</b>، ويعمل بلا إنترنت. وأي مهمة يفوت وقتها يرنّ لها فور فتحك التطبيق.<br>⚠️ على الآيفون لا يمكن لأي تطبيق ويب أن يرنّ والتطبيق <b>مغلق تمامًا</b> (قيد من نظام آبل) — للمواعيد المهمة جدًّا اضبط منبّهًا في تطبيق «الساعة» احتياطًا.</p>
+        <p class="hint-note">⏰ الجرس يرنّ بقوة (صوت متكرّر + اهتزاز + شاشة تنبيه) <b>ما دام التطبيق مفتوحًا</b>، ويعمل بلا إنترنت. وأي مهمة يفوت وقتها يرنّ لها فور فتحك التطبيق.</p>
+
+        <div class="cal-box">
+          <strong>🔔 تذكير يرنّ والجوال مقفل</strong>
+          <p class="muted">هذه أقوى طريقة على الآيفون: أضِف مهامك إلى <b>تقويم جوالك</b> بضغطة، فيرنّ التقويم في وقت كل مهمة <b>حتى والجوال مقفل، وبلا إنترنت</b> (المتكرّرة يوميًّا تُضاف كتذكير يومي دائم).</p>
+          <button id="btnAddCalendar" type="button" class="btn btn--primary btn--block btn--sm">📅 أضِف تذكيرات مهامي إلى التقويم</button>
+          <p class="field__hint">بعد الضغط: افتح الملف الذي ينزل، ثم «إضافة الكل». كرّرها عند إضافة مهمة مهمة جديدة.</p>
+        </div>
 
         <div class="sync-box">
           <strong>☁️ المزامنة بين الأجهزة</strong>
@@ -1919,6 +1932,47 @@ textarea.input { resize: none; line-height: 1.5; }
     document.body.style.overflow = "";
   }
 
+  /* ---------------- تذكيرات التقويم (ترنّ والجوال مقفل — بلا إنترنت) ---------------- */
+  function icsEsc(s) { return String(s || "").replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n"); }
+  function icsDateTime(dateStr, timeStr) {
+    const p = timeStr.split(":");
+    return dateStr.replace(/-/g, "") + "T" + p[0] + p[1] + "00";  // وقت محلّي عائم
+  }
+  function buildICS() {
+    const timed = state.tasks.filter(t => t.time);
+    if (!timed.length) return null;
+    const stamp = new Date().toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+    const L = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//ahd-alyoum//AR", "CALSCALE:GREGORIAN", "METHOD:PUBLISH"];
+    timed.forEach(t => {
+      const startDate = t.repeat === "daily" ? dateKey() : (t.date || dateKey());
+      L.push("BEGIN:VEVENT");
+      L.push("UID:ahd-" + t.id + "@ahd-alyoum");
+      L.push("DTSTAMP:" + stamp);
+      L.push("DTSTART:" + icsDateTime(startDate, t.time));
+      L.push("DURATION:PT10M");
+      L.push("SUMMARY:" + icsEsc("🤲 " + t.title));
+      if (t.desc) L.push("DESCRIPTION:" + icsEsc(t.desc));
+      if (t.repeat === "daily") L.push("RRULE:FREQ=DAILY");
+      L.push("BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:" + icsEsc("حان وقت المهمة: " + t.title), "TRIGGER:-PT0M", "END:VALARM");
+      L.push("END:VEVENT");
+    });
+    L.push("END:VCALENDAR");
+    return L.join("\r\n");
+  }
+  function addToCalendar() {
+    const ics = buildICS();
+    if (!ics) { pulse("لا توجد مهام لها وقت تنبيه"); return; }
+    try {
+      const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "ahd-reminders.ics";
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1500);
+      pulse("افتح الملف ثم «إضافة الكل» ليدخل التقويم 📅");
+    } catch (e) { pulse("تعذّر إنشاء الملف"); }
+  }
+
   /* ---------------- أدوات المنصّة والجدولة ---------------- */
   const isIOSDevice = /iphone|ipad|ipod/i.test(navigator.userAgent);
   const isStandalone = () =>
@@ -2111,6 +2165,8 @@ textarea.input { resize: none; line-height: 1.5; }
     // زر تجربة الجرس
     const btnTest = $("#btnTestBell");
     if (btnTest) btnTest.addEventListener("click", () => { unlockAudio(); startAlarm({ id: "__test__", title: "تجربة الجرس" }); });
+    const btnCal = $("#btnAddCalendar");
+    if (btnCal) btnCal.addEventListener("click", addToCalendar);
     $("#btnResetDay").addEventListener("click", () => {
       if (confirm("تصفير حالات مهام اليوم؟")) {
         state.daily[dateKey()] = {};
