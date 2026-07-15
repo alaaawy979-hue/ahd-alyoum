@@ -1954,6 +1954,7 @@ textarea.input { resize: none; line-height: 1.5; }
       if (t.desc) L.push("DESCRIPTION:" + icsEsc(t.desc));
       if (t.repeat === "daily") L.push("RRULE:FREQ=DAILY");
       L.push("BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:" + icsEsc("حان وقت المهمة: " + t.title), "TRIGGER:-PT0M", "END:VALARM");
+      L.push("BEGIN:VALARM", "ACTION:AUDIO", "TRIGGER:-PT0M", "END:VALARM");
       L.push("END:VEVENT");
     });
     L.push("END:VCALENDAR");
