@@ -583,7 +583,37 @@ textarea.input { resize: none; line-height: 1.5; }
 .top-cat { display: inline-flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 800; color: var(--primary-700); }
 
 /* ============ الأسبوع ============ */
-.week { display: flex; flex-direction: column; gap: 12px; margin-top: 14px; }
+.week { display: block; margin-top: 14px; }
+.week-days { display: flex; flex-direction: column; gap: 12px; }
+
+/* ملخّص الأسبوع */
+.wsum { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 16px 10px; text-align: center; margin-top: 12px; }
+.wsum__item { display: flex; flex-direction: column; gap: 4px; }
+.wsum__num { font-size: 22px; font-weight: 800; color: var(--primary-700); line-height: 1.2; }
+.wsum__cap { font-size: 11px; color: var(--muted); font-weight: 600; }
+
+/* شبكة العادات اليومية */
+.habits { padding: 6px 16px; }
+.habit { padding: 14px 0; border-bottom: 1px solid var(--line); }
+.habit:last-child { border-bottom: none; }
+.habit__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 9px; }
+.habit__name { font-size: 14.5px; font-weight: 700; }
+.habit__count { font-size: 18px; font-weight: 800; flex-shrink: 0; }
+.habit__count.is-good { color: var(--success); }
+.habit__count.is-mid { color: var(--warn); }
+.habit__count.is-low { color: var(--danger); }
+.habit__of { font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.habit__grid { display: flex; gap: 5px; margin-bottom: 9px; }
+.hcell {
+  flex: 1; height: 30px; border-radius: 8px; display: grid; place-items: center;
+  font-size: 11px; font-weight: 700; border: 1px solid var(--line); color: var(--muted); background: var(--bg);
+}
+.hcell.is-done { background: var(--success); border-color: var(--success); color: #fff; }
+.hcell.is-missed { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
+.hcell.is-pending { background: var(--bg); color: var(--muted); }
+.hcell.is-future { opacity: .4; border-style: dashed; }
+.bar__fill--mid { background: linear-gradient(90deg, var(--warn), #fbbf24) !important; }
+.bar__fill--low { background: linear-gradient(90deg, var(--danger), #fb7185) !important; }
 .day-card { padding: 15px 16px; display: flex; align-items: center; gap: 14px; }
 .day-card__date { text-align: center; min-width: 52px; }
 .day-card__day { font-size: 13px; color: var(--muted); font-weight: 600; }
@@ -640,7 +670,7 @@ textarea.input { resize: none; line-height: 1.5; }
   .task-list { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .task-list .task { animation: none; }
   .report-grid { grid-template-columns: repeat(4, 1fr); }
-  .week { display: grid; grid-template-columns: 1fr 1fr; }
+  .week-days { display: grid; grid-template-columns: 1fr 1fr; }
 }
 
 /* ============ التجاوب: لابتوب وشاشات كبيرة ============ */
@@ -660,7 +690,7 @@ textarea.input { resize: none; line-height: 1.5; }
 
   .task-list { grid-template-columns: 1fr 1fr; }
   .report-grid { grid-template-columns: 1fr 1fr; }
-  .week { grid-template-columns: 1fr; }
+  .week-days { grid-template-columns: 1fr; }
 }
 
 /* اللوحة الجانبية (لابتوب فقط) */
@@ -1763,6 +1793,12 @@ textarea.input { resize: none; line-height: 1.5; }
   $("#weekPrev").addEventListener("click", () => { weekOffset--; renderToday(); });
   $("#weekNext").addEventListener("click", () => { weekOffset++; renderToday(); });
   $("#weekToday").addEventListener("click", goToday);
+  // تصفّح الأسابيع من داخل تقرير الأسبوع
+  $("#weekBody").addEventListener("click", e => {
+    const b = e.target.closest("[data-wk]"); if (!b) return;
+    weekOffset += Number(b.dataset.wk);
+    renderWeek(); renderDayStrip();
+  });
 
   $("#taskForm").addEventListener("submit", e => {
     e.preventDefault();
@@ -1849,21 +1885,72 @@ textarea.input { resize: none; line-height: 1.5; }
   }
 
   /* ---------------- الأسبوع ---------------- */
+  const AR_DAY_INIT = ["ح", "ن", "ث", "ر", "خ", "ج", "س"];   // الأحد..السبت
+
   function renderWeek() {
-    const cards = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(); d.setDate(d.getDate() - i);
+    const start = startOfWeek(weekOffset);
+    const today = dateKey();
+    const days = [];
+    for (let i = 0; i < 7; i++) { const d = new Date(start); d.setDate(start.getDate() + i); days.push(d); }
+    const end = new Date(start); end.setDate(start.getDate() + 6);
+
+    /* ---- ملخّص الأسبوع (الأيام الماضية والحالية فقط) ---- */
+    let totalDone = 0, totalTasks = 0, fullDays = 0, pctSum = 0, counted = 0, bestDay = null, bestPct = -1;
+    days.forEach(d => {
+      const key = dateKey(d);
+      if (key > today) return;
+      const st = dayStats(key);
+      if (st.total === 0) return;
+      totalDone += st.done; totalTasks += st.total; pctSum += st.pct; counted++;
+      if (st.done === st.total) fullDays++;
+      if (st.pct > bestPct) { bestPct = st.pct; bestDay = d; }
+    });
+    const avg = counted ? Math.round(pctSum / counted) : 0;
+
+    const weekLbl = weekOffset === 0 ? "هذا الأسبوع"
+      : weekOffset === -1 ? "الأسبوع الماضي"
+      : `${start.getDate()} ${AR_MONTHS[start.getMonth()]} – ${end.getDate()} ${AR_MONTHS[end.getMonth()]}`;
+
+    /* ---- التزامك بالعادات اليومية (المهام اليومية) ---- */
+    const dailyTasks = state.tasks.filter(t => t.repeat === "daily");
+    const habits = dailyTasks.map(t => {
+      const cells = days.map(d => {
+        const key = dateKey(d);
+        if (key > today) return "future";
+        return taskStatus(t.id, key);            // done | missed | pending
+      });
+      const done = cells.filter(c => c === "done").length;
+      const past = cells.filter(c => c !== "future").length;
+      return { t, cells, done, past, pct: past ? Math.round(done / past * 100) : 0 };
+    }).sort((a, b) => b.done - a.done || b.pct - a.pct);
+
+    const habitsHTML = habits.length ? habits.map(h => `
+      <div class="habit">
+        <div class="habit__head">
+          <span class="habit__name">${CAT_ICONS[h.t.category] || "✨"} ${esc(h.t.title)}</span>
+          <span class="habit__count ${h.pct >= 80 ? "is-good" : h.pct >= 50 ? "is-mid" : "is-low"}">${h.done}<span class="habit__of">/${h.past || 7}</span></span>
+        </div>
+        <div class="habit__grid">
+          ${h.cells.map((c, i) => `<span class="hcell is-${c}" title="${AR_DAYS[i]}">${AR_DAY_INIT[i]}</span>`).join("")}
+        </div>
+        <div class="bar"><div class="bar__fill ${h.pct >= 80 ? "" : h.pct >= 50 ? "bar__fill--mid" : "bar__fill--low"}" style="width:${h.pct}%"></div></div>
+      </div>`).join("")
+      : `<p class="muted" style="text-align:center;padding:14px 0">لا توجد مهام يومية بعد. أضف مهمة وحدّد تكرارها «يوميًا» لتتابع التزامك بها.</p>`;
+
+    /* ---- بطاقات الأيام ---- */
+    const dayCards = days.map(d => {
       const key = dateKey(d);
       const st = dayStats(key);
-      const isToday = i === 0;
-      let sCls = "s-none", sLabel = "لا مهام";
-      if (st.total > 0) {
+      const isToday = key === today;
+      const future = key > today;
+      let sCls = "s-none", sLabel = future ? "قادم" : "لا مهام";
+      if (!future && st.total > 0) {
         if (st.pct >= 90) { sCls = "s-high"; sLabel = "ممتاز"; }
         else if (st.pct >= 60) { sCls = "s-mid"; sLabel = "جيد"; }
         else { sCls = "s-low"; sLabel = "يحتاج تحسين"; }
       }
-      cards.push(`
-        <div class="day-card card ${isToday ? "is-today" : ""}">
+      return `
+        <div class="day-card card ${isToday ? "is-today" : ""}" style="${future ? "opacity:.55" : ""}">
           <div class="day-card__date">
             <div class="day-card__day">${isToday ? "اليوم" : AR_DAYS[d.getDay()]}</div>
             <div class="day-card__num">${d.getDate()}</div>
@@ -1871,14 +1958,36 @@ textarea.input { resize: none; line-height: 1.5; }
           <div class="day-card__body">
             <div class="day-card__top">
               <span>${st.done}/${st.total} مهمة</span>
-              <span class="day-card__pct">${st.pct}%</span>
+              <span class="day-card__pct">${future ? "—" : st.pct + "%"}</span>
             </div>
-            <div class="bar"><div class="bar__fill" style="width:${st.pct}%"></div></div>
+            <div class="bar"><div class="bar__fill" style="width:${future ? 0 : st.pct}%"></div></div>
           </div>
           <span class="day-status ${sCls}">${sLabel}</span>
-        </div>`);
-    }
-    $("#weekBody").innerHTML = cards.join("");
+        </div>`;
+    }).join("");
+
+    $("#weekBody").innerHTML = `
+      <div class="week-nav" style="margin-top:4px">
+        <button type="button" class="week-nav__btn" data-wk="-1" aria-label="الأسبوع السابق">›</button>
+        <span class="week-nav__label">${weekLbl}</span>
+        <button type="button" class="week-nav__btn" data-wk="1" aria-label="الأسبوع التالي">‹</button>
+      </div>
+
+      <div class="wsum card">
+        <div class="wsum__item"><span class="wsum__num">${avg}%</span><span class="wsum__cap">متوسط الإنجاز</span></div>
+        <div class="wsum__item"><span class="wsum__num" style="color:var(--success)">${totalDone}</span><span class="wsum__cap">مهمة أنجزتها</span></div>
+        <div class="wsum__item"><span class="wsum__num">${fullDays}</span><span class="wsum__cap">أيام كاملة</span></div>
+        <div class="wsum__item"><span class="wsum__num" style="font-size:17px">${bestDay ? AR_DAYS[bestDay.getDay()] : "—"}</span><span class="wsum__cap">أفضل يوم</span></div>
+      </div>
+
+      <div class="section-head" style="margin-top:22px">
+        <h3 class="section-head__title">🔁 التزامك بعاداتك اليومية</h3>
+        <span class="section-head__badge">${habits.length}</span>
+      </div>
+      <div class="habits card">${habitsHTML}</div>
+
+      <div class="section-head" style="margin-top:22px"><h3 class="section-head__title">📅 أيام الأسبوع</h3></div>
+      <div class="week-days">${dayCards}</div>`;
   }
 
   /* ---------------- اللوحة الجانبية (لابتوب) ---------------- */
