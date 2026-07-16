@@ -309,6 +309,9 @@ input, textarea, select { font-family: inherit; font-size: 16px; }
   background: var(--bg); color: var(--ink-2); border: 1px solid var(--line);
 }
 .tag--time { background: var(--primary-tint); color: var(--primary-700); border-color: var(--primary-soft); }
+.tag--carried { background: #fef3c7; color: #b45309; border-color: #fde68a; font-weight: 700; }
+:root[data-theme="dark"] .tag--carried { background: #3a2f10; color: #fbbf24; border-color: #4d411a; }
+.task.is-carried::before { background: var(--warn) !important; }
 .tag--status.is-pending { background: #f1f5f9; color: var(--muted); }
 .tag--status.is-done { background: var(--success-soft); color: #15803d; border-color: #bbf7d0; }
 .tag--status.is-missed { background: var(--danger-soft); color: #be123c; border-color: #fecdd3; }
@@ -447,9 +450,26 @@ textarea.input { resize: none; line-height: 1.5; }
 .chip.is-active { background: var(--primary-tint); border-color: var(--primary); color: var(--primary-700); }
 .chip:active { transform: scale(.95); }
 
-/* شريط الأيام (٧ أيام) */
+/* تصفّح الأسابيع */
+.week-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 18px; }
+.week-nav__btn {
+  width: 34px; height: 34px; border-radius: 11px; flex-shrink: 0;
+  display: grid; place-items: center; font-size: 20px; font-weight: 800; line-height: 1;
+  background: var(--surface); border: 1px solid var(--line); color: var(--ink-2);
+  transition: all .18s;
+}
+.week-nav__btn:hover { border-color: var(--primary); color: var(--primary); }
+.week-nav__btn:active { transform: scale(.9); }
+.week-nav__mid { display: flex; align-items: center; gap: 8px; }
+.week-nav__label { font-size: 13.5px; font-weight: 700; color: var(--ink-2); }
+.week-nav__today {
+  font-size: 12px; font-weight: 700; padding: 4px 11px; border-radius: 999px;
+  background: var(--primary-tint); color: var(--primary-700); border: 1px solid var(--primary-soft);
+}
+
+/* شريط الأيام (الأحد → السبت) */
 .day-strip {
-  display: flex; gap: 8px; margin-top: 16px;
+  display: flex; gap: 8px; margin-top: 10px;
   overflow-x: auto; padding: 2px 2px 6px; scrollbar-width: none; -webkit-overflow-scrolling: touch;
 }
 .day-strip::-webkit-scrollbar { display: none; }
@@ -462,6 +482,9 @@ textarea.input { resize: none; line-height: 1.5; }
 .day-chip__num { display: block; font-size: 19px; font-weight: 800; color: var(--ink); margin-top: 2px; }
 .day-chip__dot { display: block; width: 5px; height: 5px; border-radius: 50%; margin: 4px auto 0; background: transparent; }
 .day-chip.has-tasks .day-chip__dot { background: var(--primary); }
+.day-chip.is-complete .day-chip__dot { background: var(--success); }
+.day-chip.is-today { border-color: var(--primary); border-width: 2px; }
+.day-chip.is-today .day-chip__lbl { color: var(--primary); }
 .day-chip.is-active { background: var(--primary); border-color: var(--primary); box-shadow: 0 6px 14px rgba(15,118,110,.28); }
 .day-chip.is-active .day-chip__lbl { color: rgba(255,255,255,.85); }
 .day-chip.is-active .day-chip__num { color: #fff; }
@@ -799,7 +822,15 @@ textarea.input { resize: none; line-height: 1.5; }
             </div>
           </div>
 
-          <!-- شريط الأيام (٧ أيام متتالية) -->
+          <!-- تصفّح الأسابيع + شريط الأيام (الأحد → السبت) -->
+          <div class="week-nav">
+            <button type="button" id="weekPrev" class="week-nav__btn" aria-label="الأسبوع السابق">›</button>
+            <div class="week-nav__mid">
+              <span id="weekLabel" class="week-nav__label">هذا الأسبوع</span>
+              <button type="button" id="weekToday" class="week-nav__today" hidden>اليوم</button>
+            </div>
+            <button type="button" id="weekNext" class="week-nav__btn" aria-label="الأسبوع التالي">‹</button>
+          </div>
           <div class="day-strip" id="dayStrip"></div>
 
           <!-- بطاقة احتفالية -->
@@ -1378,8 +1409,9 @@ textarea.input { resize: none; line-height: 1.5; }
   }
 
   /* ---------------- منطق المهام ---------------- */
-  // اليوم المعروض حاليًا في اللوحة (افتراضيًا: اليوم)
+  // اليوم المعروض حاليًا في اللوحة (افتراضيًا: اليوم) + إزاحة الأسبوع المعروض
   let selectedDate = dateKey();
+  let weekOffset = 0;
 
   const addDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d; };
   function dayShortLabel(key) {
@@ -1389,10 +1421,35 @@ textarea.input { resize: none; line-height: 1.5; }
     return AR_DAYS[d.getDay()];
   }
 
+  // هل أُنجزت هذه المهمة في أي يوم؟ (لتحديد ترحيل مهام «مرة واحدة»)
+  function isEverDone(id) {
+    for (const dk in state.daily) {
+      const e = state.daily[dk][id];
+      if (e && e.status === "done") return true;
+    }
+    return false;
+  }
+  // هل هذه المهمة مُرحّلة (مرة واحدة، فات موعدها) وتُعرض في اليوم الحالي؟
+  function isCarried(t, key) {
+    return t.repeat !== "daily" && !!t.date && t.date < key && key === dateKey();
+  }
+
   function tasksForDate(key) {
+    const today = dateKey();
     return state.tasks
-      .filter(t => t.repeat === "daily" || t.date === key)
+      .filter(t => {
+        if (t.repeat === "daily") return true;          // اليومية تتكرّر ولا تُرحّل
+        if (t.date === key) return true;                 // في يومها
+        // ترحيل: «مرة واحدة» فات موعدها → تنتقل معك لليوم الحالي حتى تُنجزها
+        if (key === today && t.date && t.date < today) {
+          const actedToday = state.daily[today] && state.daily[today][t.id];
+          return !!actedToday || !isEverDone(t.id);      // تبقى ظاهرة يوم إنجازها
+        }
+        return false;
+      })
       .sort((a, b) => {
+        const ca = isCarried(a, key) ? 0 : 1, cb = isCarried(b, key) ? 0 : 1;
+        if (ca !== cb) return ca - cb;                   // المُرحّلة أولًا
         const order = { high: 0, mid: 1, low: 2 };
         if ((a.time || "99") !== (b.time || "99")) return (a.time || "99:99").localeCompare(b.time || "99:99");
         return order[a.priority] - order[b.priority];
@@ -1412,8 +1469,8 @@ textarea.input { resize: none; line-height: 1.5; }
   }
 
   function dayStats(key = dateKey()) {
-    // يحسب مهام ذلك اليوم (اليومية + مهام اليوم لمرة واحدة)
-    const tasks = state.tasks.filter(t => t.repeat === "daily" || t.date === key);
+    // يحسب مهام ذلك اليوم (اليومية + مهام اليوم + المُرحّلة إن كان اليوم الحالي)
+    const tasks = tasksForDate(key);
     const total = tasks.length;
     let done = 0, missed = 0;
     tasks.forEach(t => {
@@ -1446,23 +1503,53 @@ textarea.input { resize: none; line-height: 1.5; }
   /* ---------------- العرض: لوحة اليوم ---------------- */
   const RING_CIRC = 2 * Math.PI * 52; // ~326.7
 
+  // بداية الأسبوع (الأحد) للأسبوع المُزاح بمقدار offset
+  function startOfWeek(offset) {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + offset * 7);
+    d.setDate(d.getDate() - d.getDay());   // 0 = الأحد
+    return d;
+  }
+
   function renderDayStrip() {
     const strip = $("#dayStrip");
     if (!strip) return;
+    const start = startOfWeek(weekOffset);
     let html = "";
     for (let i = 0; i < 7; i++) {
-      const d = addDays(i);
+      const d = new Date(start); d.setDate(start.getDate() + i);
       const key = dateKey(d);
       const st = dayStats(key);
-      const active = key === selectedDate ? "is-active" : "";
-      const hasTasks = st.total > 0 ? "has-tasks" : "";
-      html += `<button type="button" class="day-chip ${active} ${hasTasks}" data-date="${key}">
-        <span class="day-chip__lbl">${dayShortLabel(key)}</span>
+      const cls = [
+        "day-chip",
+        key === selectedDate ? "is-active" : "",
+        key === dateKey() ? "is-today" : "",
+        st.total > 0 ? "has-tasks" : "",
+        st.total > 0 && st.done === st.total ? "is-complete" : ""
+      ].join(" ");
+      html += `<button type="button" class="${cls}" data-date="${key}">
+        <span class="day-chip__lbl">${AR_DAYS[d.getDay()]}</span>
         <span class="day-chip__num">${d.getDate()}</span>
         <span class="day-chip__dot"></span>
       </button>`;
     }
     strip.innerHTML = html;
+
+    // عنوان الأسبوع + إظهار زر "اليوم" عند الابتعاد عنه
+    const end = new Date(start); end.setDate(start.getDate() + 6);
+    const label = weekOffset === 0 ? "هذا الأسبوع"
+      : weekOffset === -1 ? "الأسبوع الماضي"
+      : weekOffset === 1 ? "الأسبوع القادم"
+      : `${start.getDate()} ${AR_MONTHS[start.getMonth()]} – ${end.getDate()} ${AR_MONTHS[end.getMonth()]}`;
+    const lblEl = $("#weekLabel"); if (lblEl) lblEl.textContent = label;
+    const todayBtn = $("#weekToday");
+    if (todayBtn) todayBtn.hidden = (weekOffset === 0 && selectedDate === dateKey());
+  }
+  function goToday() {
+    weekOffset = 0;
+    selectedDate = dateKey();
+    renderToday();
   }
 
   function renderToday() {
@@ -1473,8 +1560,10 @@ textarea.input { resize: none; line-height: 1.5; }
 
     // عنوان القسم وتاريخ البطاقة حسب اليوم المعروض
     const d = new Date(selectedDate + "T00:00:00");
-    $("#heroDate").textContent = (isToday ? "اليوم" : dayShortLabel(selectedDate)) + " • " + fmtLongDate(d);
-    $("#taskListTitle").textContent = isToday ? "مهام اليوم" : "مهام يوم " + dayShortLabel(selectedDate);
+    const rel = dayShortLabel(selectedDate);                     // اليوم / غدًا / اسم اليوم
+    const isRel = rel === "اليوم" || rel === "غدًا";
+    $("#heroDate").textContent = (isRel ? rel + " • " : "") + fmtLongDate(d);
+    $("#taskListTitle").textContent = isToday ? "مهام اليوم" : "مهام يوم " + rel;
 
     // الحلقة
     const ringFg = $("#ringFg");
@@ -1517,9 +1606,11 @@ textarea.input { resize: none; line-height: 1.5; }
     }[status];
 
     const stateClass = status === "done" ? "is-done" : status === "missed" ? "is-missed" : "";
+    const carried = isCarried(t, selectedDate);
+    const carriedFrom = carried ? dayShortLabel(t.date) : "";
 
     return `
-      <article class="task ${stateClass}" data-priority="${t.priority}" data-id="${t.id}">
+      <article class="task ${stateClass} ${carried ? "is-carried" : ""}" data-priority="${t.priority}" data-id="${t.id}">
         <div class="task__head">
           <div>
             <div class="task__title">${esc(t.title)}</div>
@@ -1527,6 +1618,7 @@ textarea.input { resize: none; line-height: 1.5; }
           </div>
         </div>
         <div class="task__meta">
+          ${carried ? `<span class="tag tag--carried">🔄 مُرحّلة من ${esc(carriedFrom)}</span>` : ""}
           <span class="tag">${CAT_ICONS[t.category] || "✨"} ${esc(t.category)}</span>
           ${t.time ? `<span class="tag tag--time">⏰ ${esc(t.time)}</span>` : ""}
           <span class="tag">${PRIORITY_ICON[t.priority]} ${PRIORITY_AR[t.priority]}</span>
@@ -1632,7 +1724,8 @@ textarea.input { resize: none; line-height: 1.5; }
       $("#taskModalTitle").textContent = "مهمة جديدة";
       $("#fId").value = "";
       formCat = "عبادة"; formRep = "once";
-      formDate = selectedDate;   // يبدأ باليوم المعروض حاليًا
+      // يبدأ باليوم المعروض، وإن كان في الماضي فاليوم الحالي
+      formDate = selectedDate >= dateKey() ? selectedDate : dateKey();
       $("#fPriority").value = "mid";
     }
     // تحديث الرقائق والمقسّم واختيار اليوم
@@ -1666,6 +1759,10 @@ textarea.input { resize: none; line-height: 1.5; }
     selectedDate = c.dataset.date;
     renderToday();
   });
+  // تصفّح الأسابيع (رجوع للخلف/تقدّم) + العودة لليوم
+  $("#weekPrev").addEventListener("click", () => { weekOffset--; renderToday(); });
+  $("#weekNext").addEventListener("click", () => { weekOffset++; renderToday(); });
+  $("#weekToday").addEventListener("click", goToday);
 
   $("#taskForm").addEventListener("submit", e => {
     e.preventDefault();
@@ -2232,7 +2329,18 @@ textarea.input { resize: none; line-height: 1.5; }
     if (hasSync()) startSync();
 
     // تحديث التواريخ عند تغيّر اليوم
-    setInterval(() => { setDates(); }, 60000);
+    // تحديث التواريخ + الانتقال التلقائي لليوم الجديد عند منتصف الليل
+    let lastToday = dateKey();
+    setInterval(() => {
+      setDates();
+      const t = dateKey();
+      if (t !== lastToday) {
+        if (selectedDate === lastToday) selectedDate = t;  // كنّا على "اليوم" → انتقل للجديد
+        lastToday = t;
+        weekOffset = 0;
+        renderToday();
+      }
+    }, 30000);
 
     // إخفاء شاشة الترحيب
     setTimeout(() => {
